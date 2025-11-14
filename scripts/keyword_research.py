@@ -181,7 +181,7 @@ class KeywordResearcher:
     def _api_research(self, topic: str, limit: int) -> List[KeywordData]:
         """
         Call DataForSEO API for keyword research
-        
+
         Uses the Google Ads Search Volume Live endpoint which returns immediate results.
         API Documentation: https://docs.dataforseo.com/v3/keywords_data/google_ads/search_volume/live
         """
@@ -189,17 +189,21 @@ class KeywordResearcher:
             # Import requests only if API is available
             import requests
             from requests.auth import HTTPBasicAuth
-            
+
             # DataForSEO API endpoint - Live endpoint returns immediate results
             url = "https://api.dataforseo.com/v3/keywords_data/google_ads/search_volume/live"
-            
+
             # Parse credentials (format: "login:password")
             login, password = self.api_key.split(':')
-            
+
+            # Generate keyword variations to get metrics for multiple options
+            variations = self._generate_variations(topic)
+
             # Prepare request according to DataForSEO v3 API specification
             # Live endpoint expects array of request objects
+            # Send more variations than limit to have options after sorting
             payload = [{
-                "keywords": [topic],
+                "keywords": variations[:limit * 2],  # Get metrics for multiple variations
                 "location_code": 2840,  # USA (can also use location_name: "United States")
                 "language_code": "en",   # English (can also use language_name: "English")
                 # Note: search_partners, date_from, date_to are not valid for /live endpoint
@@ -322,7 +326,7 @@ class KeywordResearcher:
                     
                     keyword_data = KeywordData(
                         keyword=item.get('keyword', topic),
-                        search_volume=item.get('search_volume', 0),
+                        search_volume=item.get('search_volume') or 0,
                         keyword_difficulty=self._calculate_difficulty(item),
                         related_keywords=self._extract_related(item),
                         relevance_score=self._calculate_relevance(item, topic)
@@ -353,10 +357,10 @@ class KeywordResearcher:
         competition_index = item.get('competition_index')
         if competition_index is not None:
             return competition_index
-        
+
         # Fallback: use competition string and CPC
-        competition_str = item.get('competition', '').upper()
-        cpc = item.get('cpc', 0)
+        competition_str = (item.get('competition') or '').upper()
+        cpc = item.get('cpc') or 0
         
         # Map competition string to numeric value
         competition_map = {
@@ -386,9 +390,9 @@ class KeywordResearcher:
     def _calculate_relevance(self, item: Dict, original_topic: str) -> float:
         """Calculate relevance score (0-100) based on multiple factors"""
         score = 0.0
-        
+
         # Factor 1: Search volume (30%)
-        volume = item.get('search_volume', 0)
+        volume = item.get('search_volume') or 0
         if volume > 10000:
             score += 30
         elif volume > 1000:
