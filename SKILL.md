@@ -126,29 +126,40 @@ User has already identified target keyword. Proceed directly to validation:
 
 User needs keyword research assistance. Execute keyword research:
 
-1. **Run keyword research script (with hybrid credential management):**
-   
+1. **Run keyword research script (with credential handling):**
+
    The script automatically tries multiple credential methods in order:
    1. Command line argument (`--api-key`)
    2. Environment variable (`DATAFORSEO_API_KEY`)
    3. Config file (`~/.dataforseo-skill/config.json`)
-   4. Interactive prompt (`--interactive` flag)
-   
-   **Recommended approach for Claude Skills:**
-   ```bash
-   # Use --interactive flag to prompt user if credentials not found
-   python scripts/keyword_research.py "user topic" --limit 5 --format markdown --interactive
+   4. Fallback to heuristic mode (no API needed)
+
+   **IMPORTANT FOR CLAUDE CODE ENVIRONMENT:**
+
+   **Option A: Ask user for API key (if they want real data):**
    ```
-   
-   **Alternative: If user provides credentials directly:**
-   ```bash
-   python scripts/keyword_research.py "user topic" --limit 5 --format markdown --api-key "login:password"
+   Claude: "Would you like to use the DataForSEO API for real keyword data?
+           If yes, please provide your API key in format: login:password
+           If no, I'll use fallback mode with intelligent estimates."
+
+   IF user provides key:
+     python scripts/keyword_research.py "user topic" --limit 5 --format markdown --api-key "user_provided_key"
+   ELSE:
+     python scripts/keyword_research.py "user topic" --limit 5 --format markdown
    ```
-   
+
+   **Option B: Use fallback mode directly (faster, no credentials needed):**
+   ```bash
+   # Fallback mode works without any credentials
+   python scripts/keyword_research.py "user topic" --limit 5 --format markdown
+   ```
+
+   **DO NOT use `--interactive` flag** - it doesn't work in Claude Code's non-TTY environment.
+
    **Note:** The script automatically falls back to heuristic mode if:
-   - No credentials found and `--interactive` not used
+   - No credentials found
    - API call fails (invalid credentials, rate limit, etc.)
-   - User cancels interactive prompt
+   - Script provides intelligent keyword suggestions without API
 
 3. **Present options to user:**
    
