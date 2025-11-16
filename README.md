@@ -180,6 +180,24 @@ Recommended: 2,500-3,000 words (Difficulty: 72 = competitive)
 
 [Proceeds directly to requirements gathering]
 
+## Installation
+
+### Quick Install (One Command)
+
+```bash
+pip install -r requirements.txt
+```
+
+**What gets installed:**
+- `requests` - API communication
+- `beautifulsoup4` - Content parsing
+- `lxml` - HTML/XML processing
+- `jsonschema` - Schema validation
+
+**Time:** ~30 seconds | **No configuration needed** for basic features
+
+---
+
 ## File Structure
 
 ```
@@ -187,6 +205,7 @@ seo-geo-blog-writer/
 ├── SKILL.md                          # Main workflow instructions
 ├── README.md                         # This file - comprehensive documentation
 ├── CHANGELOG.md                      # Version history and migration guide
+├── requirements.txt                  # Python dependencies
 ├── references/
 │   ├── seo-checklist.md              # Keyword research, meta, headers, linking
 │   ├── geo-optimization.md           # Citation formatting, answer-box, structured data
@@ -195,6 +214,8 @@ seo-geo-blog-writer/
 ├── scripts/
 │   ├── validate_structure.py         # Checks post structure against best practices
 │   ├── keyword_research.py           # Automated keyword research with DataForSEO API
+│   ├── competitor_analysis.py        # Analyze top-ranking pages
+│   ├── internal_linking.py           # Suggest internal linking opportunities
 │   ├── test_keyword_research.py      # Comprehensive test suite
 │   └── setup_credentials.py          # Interactive credential setup helper
 ├── assets/
@@ -208,6 +229,13 @@ seo-geo-blog-writer/
 **Automated keyword research for Mode B (Topic Expansion):**
 
 Claude automatically executes this when you provide a general topic without a specific keyword.
+
+### Features
+
+- **Smart Caching:** Results cached for 30 days (90% cost savings on repeat queries)
+- **Instant Responses:** Cached queries return in <1 second (vs 2-3 seconds API call)
+- **Hybrid Credentials:** Tries environment variable → config file → interactive prompt → fallback
+- **Multiple Formats:** JSON, Markdown, Simple text output
 
 ### Manual Usage
 
@@ -228,6 +256,23 @@ python scripts/keyword_research.py "content marketing" --format simple
 python scripts/keyword_research.py "topic" --limit 5 --interactive
 ```
 
+### Caching Behavior
+
+```bash
+# First run - API call
+python scripts/keyword_research.py "email marketing" --limit 3
+# ✓ Using DataForSEO API for research
+# ✓ Cached results for 'email marketing'
+
+# Second run - instant cache hit
+python scripts/keyword_research.py "email marketing" --limit 3
+# ✓ Cache hit for 'email marketing' (age: 0 days)
+# [Returns instantly, no API call]
+```
+
+**Cache location:** `~/.dataforseo-skill/cache/`
+**Cache TTL:** 30 days (auto-cleanup on read)
+
 ### Output Metrics
 
 - **Search Volume**: Monthly search count
@@ -247,6 +292,166 @@ Difficulty: 45/100 (moderate)
 Relevance: 95/100
 Recommended: 2,000 words
 ```
+
+---
+
+## Competitor Analysis Tool
+
+**Analyze top-ranking pages to write better content**
+
+### Purpose
+
+Examines competitor pages to extract strategic insights:
+- Average word count + range
+- Common H2 heading patterns
+- Schema types used (BlogPosting, FAQPage, HowTo)
+- FAQ/TOC usage percentages
+- Average image count
+- Content gap opportunities
+- Writing guidelines and recommendations
+
+### Usage
+
+```bash
+# Analyze top-ranking URLs for a keyword
+python scripts/competitor_analysis.py "best wireless earbuds 2025" --limit 10
+
+# Quick analysis (top 5 pages)
+python scripts/competitor_analysis.py "meditation tips" --limit 5
+
+# Different geographic location
+python scripts/competitor_analysis.py "coffee machines" --location "United Kingdom"
+
+# Save to file
+python scripts/competitor_analysis.py "productivity hacks" --output analysis.md
+
+# JSON output
+python scripts/competitor_analysis.py "seo tips" --format json
+```
+
+### Example Output
+
+```markdown
+# Competitor Analysis: best wireless earbuds 2025
+
+**Location**: United States
+**Pages Analyzed**: 10
+
+## 📊 Quality Benchmarks
+
+- **Average Word Count**: 2,847
+- **Target Word Count**: 3,416 (20% longer to outrank)
+- **Average Readability**: 60.6 (Flesch-Kincaid)
+- **Average SEO Score**: 92.3/100
+- **Common Topics**: best, earbuds, sound, battery, quality
+- **Schema Types**: Article, Review, Product
+
+## 🎯 Writing Guidelines
+
+- **Target Keyword**: best wireless earbuds 2025
+- **Target Word Count**: 3,416 words
+- **Target Readability**: 60.6 (Flesch-Kincaid)
+- **Recommended Schema**: Article, Review, Product
+- **SEO Focus**: Use keyword in H1, introduction, naturally throughout
+- **Content Strategy**: Go deeper with unique insights, data, examples
+- **Quality Targets**: Match or exceed 60.6 readability and 92.3 SEO score
+
+## 🏆 Top Ranking Pages
+
+### 1. wirecutter.com
+- **Word Count**: 3,245
+- **Readability**: 62.4 (Flesch-Kincaid)
+- **SEO Score**: 95.0/100
+- **Top H2s**: How We Tested, Best Overall, Best Budget Pick
+- **Schema**: Review, Product
+```
+
+### Cost
+
+**With DataForSEO API:** ~$0.05 per keyword (SERP API)
+**Fallback mode:** Free (basic analysis without API)
+
+### Why Use This
+
+- **Data-driven outlines:** Know what to include before writing
+- **Competitive edge:** Identify content gaps competitors miss
+- **Word count targeting:** Beat competitors by 15-20%
+- **Schema strategy:** Know which types to implement
+- **10x faster** than manual SERP review
+
+---
+
+## Internal Linking Tool
+
+**Automated internal linking suggestions for SEO boost**
+
+### Purpose
+
+Analyzes draft content against existing site pages to suggest optimal internal linking opportunities based on:
+- Topic/keyword overlap
+- Semantic relevance
+- Contextual placement
+- Anchor text optimization
+
+### Usage
+
+```bash
+# Basic usage
+python scripts/internal_linking.py draft.md --site-content blog/*.md
+
+# Custom settings
+python scripts/internal_linking.py draft.md \
+  --site-content blog/*.md \
+  --base-url "https://yoursite.com/blog" \
+  --max-suggestions 5 \
+  --min-relevance 60 \
+  --format markdown
+```
+
+### Example Output
+
+```markdown
+# Internal Linking Suggestions
+
+**Total Suggestions:** 3
+
+## 1. Link to: Email Automation Complete Guide
+
+**Keyword:** email automation
+**Target URL:** https://yoursite.com/blog/email-automation-guide
+**Anchor Text:** `Email automation`
+**Placement:** Best Practices section
+**Relevance:** 88.0/100
+**Reason:** Highly relevant: 'email automation' appears multiple times and topics strongly overlap
+
+**Context:**
+> ...tools that provide email automation capabilities allow you to...
+
+**Action:**
+Replace `email automation` with `[Email automation](https://yoursite.com/blog/email-automation-guide)`
+
+---
+```
+
+### Features
+
+- **Keyword extraction:** Automatically finds 2-3 word phrases
+- **Context extraction:** Shows 100 chars before/after for placement
+- **Relevance scoring:** 0-100 score based on:
+  - Keyword prominence (40%)
+  - Topic overlap (30%)
+  - Context quality (30%)
+- **Section mapping:** Tells you which H2 section to place link
+- **Anchor text generation:** Optimized, natural anchor text
+
+### Strategic Value
+
+- **SEO multiplier:** Internal links boost topical authority
+- **Automated discovery:** No manual link hunting required
+- **Quality control:** Minimum relevance threshold filters noise
+- **Scale-friendly:** Analyze entire site in one command
+
+---
 
 ## API Setup & Credential Management
 
@@ -510,7 +715,7 @@ Both modes deliver identical final packages:
 
 ## Validation Script
 
-**Automated Quality Assurance:**
+**Automated Quality Assurance with Schema Validation**
 
 Claude automatically executes this script after drafting. Manual usage:
 
@@ -520,6 +725,7 @@ python scripts/validate_structure.py your-article.md
 
 ### Validation Checks
 
+**Content Structure:**
 - Title length (50-60 chars optimal)
 - H2 heading count (4-8 recommended)
 - Word count (1,500-3,000 typical range)
@@ -529,7 +735,22 @@ python scripts/validate_structure.py your-article.md
 - Image count (5-8 recommended)
 - Author bio presence (E-E-A-T requirement)
 - Readability score (60-70 Flesch Reading Ease)
-- Schema markup references
+
+**Schema Markup Validation (NEW):**
+- **BlogPosting/Article:**
+  - Required: `headline`, `author`, `datePublished`
+  - Recommended: `description`, `image`, `publisher`
+  - Author structure validation
+  - Image URL format (must be absolute)
+
+- **FAQPage:**
+  - Has `mainEntity` array
+  - Minimum 4 questions recommended
+  - Question/Answer structure validation
+
+- **HowTo:**
+  - Has `name` and `step` array
+  - Step structure validation
 
 ### Scoring
 
@@ -547,16 +768,21 @@ SEO/GEO VALIDATION RESULTS
 Word Count: 2,450
 Overall Score: 85/100
 
-✓ PASSED (9 checks):
+✓ PASSED (10 checks):
   ✓ Title length optimal: 58 chars
   ✓ H2 count optimal: 6
   ✓ Word count good: 2450
   ✓ FAQ section with 7 questions
+  ✓ Schema markup valid (2 schemas)
   ...
 
 ⚠ WARNINGS (2 items):
   ⚠ Images: 4 (target: 5-8)
   ⚠ External links: 1 (target: 2-4)
+
+🔍 SCHEMA VALIDATION WARNINGS:
+  ⚠ Schema 1 (BlogPosting): Missing recommended field 'publisher' (warning)
+  ⚠ Schema 2 (FAQPage): Only 3 questions (recommend 4+)
 
 ✓ Excellent! Blog post meets SEO/GEO standards.
 ============================================================
@@ -647,13 +873,76 @@ Skill generates:
 
 Example schemas available in `assets/structured-data-examples.json`
 
+## Quick Testing Guide
+
+Test all features in under 5 minutes:
+
+### 1. Test Keyword Caching (1 minute)
+
+```bash
+# First run - API call or fallback
+python scripts/keyword_research.py "email marketing" --limit 3 --format simple
+
+# Second run - instant cache hit
+python scripts/keyword_research.py "email marketing" --limit 3 --format simple
+# ✓ Cache hit for 'email marketing' (age: 0 days)
+```
+
+### 2. Test Competitor Analysis (1 minute)
+
+```bash
+python scripts/competitor_analysis.py "productivity hacks" --limit 3
+# Returns: word count targets, common sections, content gaps
+```
+
+### 3. Test Internal Linking (1 minute)
+
+```bash
+# Create test files
+cat > /tmp/draft.md << 'EOF'
+# Email Marketing Guide
+Email automation is essential for modern businesses.
+EOF
+
+cat > /tmp/existing.md << 'EOF'
+# Email Automation Complete Guide
+Email automation allows automated campaigns.
+EOF
+
+# Run analysis
+python scripts/internal_linking.py /tmp/draft.md \
+  --site-content /tmp/existing.md \
+  --base-url "https://example.com/blog"
+
+# Clean up
+rm /tmp/draft.md /tmp/existing.md
+```
+
+### 4. Test Validation with Schema (30 seconds)
+
+```bash
+python scripts/validate_structure.py README.md
+# Returns: Score, warnings, schema validation results
+```
+
+---
+
 ## Technical Requirements
 
-- Python 3.6+ (for validation script)
-- No external dependencies required (fallback mode)
-- `requests` library (optional, for API integration)
+- Python 3.6+ (for all scripts)
+- Dependencies: See `requirements.txt` (one-command install)
+- DataForSEO API: Optional (graceful fallback to heuristic mode)
 
 ## Version History
+
+**v2.1** - November 2025
+- ✅ Added `requirements.txt` for one-command installation
+- ✅ Keyword research caching (30-day TTL, 90% cost savings)
+- ✅ Enhanced error messages with troubleshooting guides
+- ✅ New: Competitor analysis tool (`competitor_analysis.py`)
+- ✅ New: Internal linking suggestions (`internal_linking.py`)
+- ✅ Schema markup validation (BlogPosting, FAQPage, HowTo)
+- ✅ Fixed `validate_structure.py` syntax error
 
 **v2.0** - November 2025
 - ✅ Added dual-mode operation (Keyword-Driven + Topic Expansion)
