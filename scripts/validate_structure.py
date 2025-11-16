@@ -8,7 +8,14 @@ Usage: python validate_structure.py <markdown_file>
 
 import re
 import sys
-from typing import Dict, List, Tuple
+import json
+from typing import Dict, List, Tuple, Optional
+
+try:
+    from jsonschema import validate, ValidationError, Draft7Validator
+    SCHEMA_VALIDATION_AVAILABLE = True
+except ImportError:
+    SCHEMA_VALIDATION_AVAILABLE = False
 
 def analyze_readability(text: str) -> float:
     """Calculate Flesch Reading Ease score (simplified)"""
@@ -27,6 +34,246 @@ def count_syllables(word: str) -> int:
     word = word.lower()
     count = len(re.findall(r'[aeiouy]+', word))
     return max(1, count)
+
+
+def extract_schema_from_content(content: str) -> List[Dict]:
+    """
+    Extract JSON-LD schema markup from markdown content.
+
+    Looks for code blocks with schema markup.
+
+    Returns:
+        List of parsed schema objects
+    """
+    schemas = []
+
+    # Pattern to match JSON-LD code blocks
+    # Matches ```json or ```json-ld blocks
+    code_blocks = re.findall(
+        r'```(?:json|json-ld)\s*\n(.*?)\n```',
+        content,
+        re.DOTALL
+    )
+
+    for block in code_blocks:
+        try:
+            data = json.loads(block)
+            # Check if it's schema.org markup (has @context or @type)
+            if isinstance(data, dict) and ('@context' in data or '@type' in data):
+                schemas.append(data)
+            elif isinstance(data, list):
+                # Handle array of schemas
+                for item in data:
+                    if isinstance(item, dict) and ('@context' in item or '@type' in item):
+                        schemas.append(item)
+        except json.JSONDecodeError:
+            continue
+
+    return schemas
+
+
+def validate_schema_structure(schema: Dict) -> Tuple[bool, List[str]]:
+    """
+    Validate schema.org JSON-LD structure.
+
+    Args:
+        schema: Parsed schema object
+
+    Returns:
+        Tuple of (is_valid, list_of_errors)
+    """
+    errors = []
+
+    # Basic structure validation
+    if not isinstance(schema, dict):
+        return False, ["Schema must be a JSON object"]
+
+    # Check for @context (required for JSON-LD)
+    if '@context' not in schema:
+        errors.append("Missing @context field (required for JSON-LD)")
+
+    # Check for @type (required)
+    if '@type' not in schema:
+        errors.append("Missing @type field (required)")
+    else:
+        schema_type = schema['@type']
+
+        # Validate based on schema type
+        if schema_type == 'BlogPosting' or schema_type == 'Article':
+            errors.extend(validate_article_schema(schema))
+        elif schema_type == 'FAQPage':
+            errors.extend(validate_faq_schema(schema))
+        elif schema_type == 'HowTo':
+            errors.extend(validate_howto_schema(schema))
+
+    return len(errors) == 0, errors
+
+
+def validate_article_schema(schema: Dict) -> List[str]:
+    """Validate BlogPosting/Article schema"""
+    errors = []
+
+    required_fields = ['headline', 'author', 'datePublished']
+    recommended_fields = ['description', 'image', 'publisher']
+
+    # Check required fields
+    for field in required_fields:
+        if field not in schema:
+            errors.append(f"BlogPosting missing required field: '{field}'")
+
+    # Check recommended fields
+    for field in recommended_fields:
+        if field not in schema:
+            errors.append(f"BlogPosting missing recommended field: '{field}' (warning)")
+
+    # Validate author structure
+    if 'author' in schema:
+        author = schema['author']
+        if isinstance(author, dict):
+            if '@type' not in author:
+                errors.append("Author object missing '@type'")
+            if 'name' not in author:
+                errors.append("Author object missing 'name'")
+        elif not isinstance(author, str):
+            errors.append("Author must be object or string")
+
+    # Validate image (if present)
+    if 'image' in schema:
+        image = schema['image']
+        if isinstance(image, str):
+            if not image.startswith('http'):
+                errors.append("Image URL should be absolute (start with http/https)")
+        elif isinstance(image, list):
+            for img in image:
+                if isinstance(img, str) and not img.startswith('http'):
+                    errors.append("Image URL should be absolute (start with http/https)")
+
+    return errors
+
+
+def validate_faq_schema(schema: Dict) -> List[str]:
+    """Validate FAQPage schema"""
+    errors = []
+
+    # Check for mainEntity
+    if 'mainEntity' not in schema:
+        errors.append("FAQPage missing 'mainEntity' field")
+        return errors
+
+    main_entity = schema['mainEntity']
+
+    # mainEntity should be array of Questions
+    if not isinstance(main_entity, list):
+        errors.append("FAQPage 'mainEntity' should be array of questions")
+        return errors
+
+    if len(main_entity) < 4:
+        errors.append(f"FAQPage has only {len(main_entity)} questions (recommend 4+)")
+
+    # Validate each question
+    for i, question in enumerate(main_entity):
+        if not isinstance(question, dict):
+            errors.append(f"Question {i+1} is not an object")
+            continue
+
+        if question.get('@type') != 'Question':
+            errors.append(f"Question {i+1} missing @type='Question'")
+
+        if 'name' not in question:
+            errors.append(f"Question {i+1} missing 'name' (the question text)")
+
+        if 'acceptedAnswer' not in question:
+            errors.append(f"Question {i+1} missing 'acceptedAnswer'")
+        else:
+            answer = question['acceptedAnswer']
+            if not isinstance(answer, dict):
+                errors.append(f"Question {i+1} acceptedAnswer should be object")
+            elif answer.get('@type') != 'Answer':
+                errors.append(f"Question {i+1} acceptedAnswer missing @type='Answer'")
+            elif 'text' not in answer:
+                errors.append(f"Question {i+1} acceptedAnswer missing 'text'")
+
+    return errors
+
+
+def validate_howto_schema(schema: Dict) -> List[str]:
+    """Validate HowTo schema"""
+    errors = []
+
+    required_fields = ['name', 'step']
+
+    for field in required_fields:
+        if field not in schema:
+            errors.append(f"HowTo missing required field: '{field}'")
+
+    # Validate steps
+    if 'step' in schema:
+        steps = schema['step']
+        if not isinstance(steps, list):
+            errors.append("HowTo 'step' should be array")
+        else:
+            for i, step in enumerate(steps):
+                if not isinstance(step, dict):
+                    errors.append(f"Step {i+1} should be object")
+                    continue
+
+                if step.get('@type') != 'HowToStep':
+                    errors.append(f"Step {i+1} missing @type='HowToStep'")
+
+                if 'text' not in step and 'name' not in step:
+                    errors.append(f"Step {i+1} missing 'text' or 'name'")
+
+    return errors
+
+
+def validate_all_schemas(content: str) -> Dict:
+    """
+    Validate all schema markup in content.
+
+    Returns:
+        Dict with validation results
+    """
+    results = {
+        'schemas_found': 0,
+        'schemas_valid': 0,
+        'schemas_invalid': 0,
+        'errors': [],
+        'warnings': []
+    }
+
+    if not SCHEMA_VALIDATION_AVAILABLE:
+        results['warnings'].append(
+            "⚠ Schema validation unavailable (install: pip install jsonschema)"
+        )
+        return results
+
+    # Extract schemas from content
+    schemas = extract_schema_from_content(content)
+    results['schemas_found'] = len(schemas)
+
+    if not schemas:
+        results['warnings'].append("⚠ No schema markup found in content")
+        return results
+
+    # Validate each schema
+    for i, schema in enumerate(schemas, 1):
+        schema_type = schema.get('@type', 'Unknown')
+
+        is_valid, schema_errors = validate_schema_structure(schema)
+
+        if is_valid:
+            results['schemas_valid'] += 1
+        else:
+            results['schemas_invalid'] += 1
+
+            # Add errors to results
+            for error in schema_errors:
+                if 'warning' in error.lower():
+                    results['warnings'].append(f"Schema {i} ({schema_type}): {error}")
+                else:
+                    results['errors'].append(f"Schema {i} ({schema_type}): {error}")
+
+    return results
 
 def validate_blog_post(content: str) -> Dict:
     """Validate blog post structure and SEO elements"""
@@ -111,11 +358,26 @@ def validate_blog_post(content: str) -> Dict:
         else:
             results['warnings'].append("⚠ Consider adding table of contents (1,500+ words)")
     
-    # Check 10: Schema markup reference
-    if "schema" in content.lower() or "json-ld" in content.lower():
-        results['passed'].append("✓ Schema markup mentioned")
+    # Check 10: Schema markup validation
+    schema_results = validate_all_schemas(content)
+
+    if schema_results['schemas_found'] > 0:
+        if schema_results['schemas_invalid'] == 0:
+            results['passed'].append(
+                f"✓ Schema markup valid ({schema_results['schemas_valid']} schemas)"
+            )
+        else:
+            results['failed'].append(
+                f"✗ Schema validation failed ({schema_results['schemas_invalid']} invalid)"
+            )
+            # Add schema errors to overall results
+            results['schema_errors'] = schema_results['errors']
+
+        # Add schema warnings
+        if schema_results['warnings']:
+            results['schema_warnings'] = schema_results['warnings']
     else:
-        results['warnings'].append("⚠ No schema markup reference found")
+        results['warnings'].append("⚠ No schema markup found")
     
     # Check 11: Meta description
     if "Meta Description" in content:
@@ -148,24 +410,36 @@ def print_results(results: Dict):
     print("="*60)
     print(f"\nWord Count: {results['word_count']}")
     print(f"Overall Score: {results['score']}/100")
-    
+
     if results['passed']:
         print(f"\n✓ PASSED ({len(results['passed'])} checks):")
         for item in results['passed']:
             print(f"  {item}")
-    
+
     if results['warnings']:
         print(f"\n⚠ WARNINGS ({len(results['warnings'])} items):")
         for item in results['warnings']:
             print(f"  {item}")
-    
+
     if results['failed']:
         print(f"\n✗ FAILED ({len(results['failed'])} checks):")
         for item in results['failed']:
             print(f"  {item}")
-    
+
+    # Print schema-specific errors if present
+    if 'schema_errors' in results and results['schema_errors']:
+        print(f"\n🔍 SCHEMA VALIDATION ERRORS:")
+        for error in results['schema_errors']:
+            print(f"  ✗ {error}")
+
+    # Print schema-specific warnings if present
+    if 'schema_warnings' in results and results['schema_warnings']:
+        print(f"\n🔍 SCHEMA VALIDATION WARNINGS:")
+        for warning in results['schema_warnings']:
+            print(f"  {warning}")
+
     print("\n" + "="*60)
-    
+
     if results['score'] >= 80:
         print("✓ Excellent! Blog post meets SEO/GEO standards.")
     elif results['score'] >= 60:
@@ -198,7 +472,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-PYTHON_EOF
-
-chmod +x scripts/validate_structure.py
-echo "✓ Validation script created"

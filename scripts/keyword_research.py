@@ -28,9 +28,11 @@ See scripts/CREDENTIALS.md for details.
 
 import argparse
 import base64
+import hashlib
 import json
 import os
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
@@ -38,6 +40,15 @@ try:
     import getpass
 except ImportError:
     getpass = None
+
+# Cache configuration
+CACHE_DIR = Path.home() / '.dataforseo-skill' / 'cache'
+CACHE_TTL_DAYS = 30  # Cache keyword research for 30 days
+
+
+class KeywordResearchError(Exception):
+    """Custom exception for keyword research failures with helpful context"""
+    pass
 
 
 @dataclass
@@ -86,6 +97,96 @@ def decode_base64_credentials(encoded: str) -> Optional[str]:
     except Exception:
         # Not valid Base64, return as-is (might be plain text)
         return encoded
+
+
+def _ensure_cache_dir():
+    """Create cache directory if it doesn't exist"""
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _get_cache_key(topic: str, limit: int) -> str:
+    """Generate cache key from topic and limit"""
+    cache_input = f"{topic.lower().strip()}_{limit}"
+    return hashlib.md5(cache_input.encode()).hexdigest()
+
+
+def get_cached_keywords(topic: str, limit: int) -> Optional[List['KeywordData']]:
+    """
+    Retrieve cached keyword research if available and fresh.
+
+    Args:
+        topic: The topic/keyword seed
+        limit: Number of results requested
+
+    Returns:
+        Cached KeywordData list or None if cache miss/expired
+    """
+    try:
+        _ensure_cache_dir()
+        cache_key = _get_cache_key(topic, limit)
+        cache_file = CACHE_DIR / f"{cache_key}.json"
+
+        if not cache_file.exists():
+            return None
+
+        # Load cached data
+        with open(cache_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        # Check if cache is still valid
+        cached_at = datetime.fromisoformat(data['timestamp'])
+        cache_age = datetime.now() - cached_at
+
+        if cache_age > timedelta(days=CACHE_TTL_DAYS):
+            # Cache expired
+            cache_file.unlink()  # Delete expired cache
+            return None
+
+        # Reconstruct KeywordData objects
+        keywords = [KeywordData(**kw) for kw in data['keywords']]
+
+        # Print cache hit info to stderr (not interfering with output)
+        print(f"✓ Cache hit for '{topic}' (age: {cache_age.days} days)", file=sys.stderr)
+
+        return keywords
+
+    except (json.JSONDecodeError, KeyError, ValueError, IOError) as e:
+        # If cache is corrupted, ignore it
+        print(f"Warning: Cache read failed ({e}), will fetch fresh data", file=sys.stderr)
+        return None
+
+
+def save_keywords_to_cache(topic: str, limit: int, keywords: List['KeywordData']):
+    """
+    Save keyword research results to cache.
+
+    Args:
+        topic: The topic/keyword seed
+        limit: Number of results
+        keywords: KeywordData list to cache
+    """
+    try:
+        _ensure_cache_dir()
+        cache_key = _get_cache_key(topic, limit)
+        cache_file = CACHE_DIR / f"{cache_key}.json"
+
+        # Prepare cache data
+        cache_data = {
+            'timestamp': datetime.now().isoformat(),
+            'topic': topic,
+            'limit': limit,
+            'keywords': [kw.to_dict() for kw in keywords]
+        }
+
+        # Write to cache
+        with open(cache_file, 'w', encoding='utf-8') as f:
+            json.dump(cache_data, f, indent=2)
+
+        print(f"✓ Cached results for '{topic}'", file=sys.stderr)
+
+    except IOError as e:
+        # Cache write failure is not critical - just log and continue
+        print(f"Warning: Could not write to cache ({e})", file=sys.stderr)
 
 
 def get_api_key(api_key: Optional[str] = None, interactive: bool = False) -> Optional[str]:
@@ -164,19 +265,31 @@ class KeywordResearcher:
         
     def research_keywords(self, topic: str, limit: int = 5) -> List[KeywordData]:
         """
-        Research keywords for a given topic
-        
+        Research keywords for a given topic with caching support.
+
         Args:
             topic: The topic/keyword seed to research
             limit: Maximum number of keyword suggestions to return
-            
+
         Returns:
             List of KeywordData objects sorted by relevance score
         """
+        # Check cache first
+        cached_results = get_cached_keywords(topic, limit)
+        if cached_results:
+            return cached_results
+
+        # Cache miss - fetch fresh data
         if self.api_available:
-            return self._api_research(topic, limit)
+            keywords = self._api_research(topic, limit)
         else:
-            return self._fallback_research(topic, limit)
+            keywords = self._fallback_research(topic, limit)
+
+        # Save to cache for future use
+        if keywords:
+            save_keywords_to_cache(topic, limit, keywords)
+
+        return keywords
     
     def _api_research(self, topic: str, limit: int) -> List[KeywordData]:
         """
@@ -243,10 +356,119 @@ class KeywordResearcher:
             return keywords
             
         except ImportError:
-            print("Warning: 'requests' library not installed. Using fallback.", file=sys.stderr)
+            print("=" * 60, file=sys.stderr)
+            print("ERROR: Required 'requests' library not installed", file=sys.stderr)
+            print("=" * 60, file=sys.stderr)
+            print("\nTo fix this issue:", file=sys.stderr)
+            print("  pip install requests", file=sys.stderr)
+            print("\nOr install all dependencies:", file=sys.stderr)
+            print("  pip install -r requirements.txt", file=sys.stderr)
+            print("\nFalling back to heuristic mode (limited functionality).", file=sys.stderr)
+            print("=" * 60 + "\n", file=sys.stderr)
+            return self._fallback_research(topic, limit)
+        except requests.exceptions.Timeout:
+            print("=" * 60, file=sys.stderr)
+            print("ERROR: API Request Timeout (>30 seconds)", file=sys.stderr)
+            print("=" * 60, file=sys.stderr)
+            print("\nPossible causes:", file=sys.stderr)
+            print("  • Slow internet connection", file=sys.stderr)
+            print("  • DataForSEO API experiencing delays", file=sys.stderr)
+            print("\nSolutions:", file=sys.stderr)
+            print("  1. Check your internet connection", file=sys.stderr)
+            print("  2. Try again in a few moments", file=sys.stderr)
+            print("  3. Use fallback mode (automatic - no action needed)", file=sys.stderr)
+            print("\nFalling back to heuristic mode.", file=sys.stderr)
+            print("=" * 60 + "\n", file=sys.stderr)
+            return self._fallback_research(topic, limit)
+        except requests.exceptions.HTTPError as e:
+            status_code = e.response.status_code if e.response else None
+
+            if status_code == 401:
+                print("=" * 60, file=sys.stderr)
+                print("ERROR: Invalid API Credentials (401 Unauthorized)", file=sys.stderr)
+                print("=" * 60, file=sys.stderr)
+                print("\nYour API credentials are incorrect or expired.", file=sys.stderr)
+                print("\nChecklist:", file=sys.stderr)
+                print("  1. Verify format: 'login:password' (colon-separated)", file=sys.stderr)
+                print("  2. Check credentials in DataForSEO dashboard:", file=sys.stderr)
+                print("     https://app.dataforseo.com/", file=sys.stderr)
+                print("  3. Ensure account is active (not expired trial)", file=sys.stderr)
+                print("  4. Verify no extra spaces in credential string", file=sys.stderr)
+                print("\nCurrent credential source:", file=sys.stderr)
+                if os.getenv('DATAFORSEO_API_KEY'):
+                    print("  → Environment variable (DATAFORSEO_API_KEY)", file=sys.stderr)
+                else:
+                    print("  → Config file or command line", file=sys.stderr)
+                print("\nFalling back to heuristic mode.", file=sys.stderr)
+                print("=" * 60 + "\n", file=sys.stderr)
+            elif status_code == 429:
+                print("=" * 60, file=sys.stderr)
+                print("ERROR: API Rate Limit Exceeded (429)", file=sys.stderr)
+                print("=" * 60, file=sys.stderr)
+                print("\nYou've made too many requests to the API.", file=sys.stderr)
+                print("\nSolutions:", file=sys.stderr)
+                print("  1. Wait a few minutes before trying again", file=sys.stderr)
+                print("  2. Check your DataForSEO plan limits", file=sys.stderr)
+                print("  3. Cached results will be used for repeated queries", file=sys.stderr)
+                print("\nFalling back to heuristic mode.", file=sys.stderr)
+                print("=" * 60 + "\n", file=sys.stderr)
+            elif status_code == 402:
+                print("=" * 60, file=sys.stderr)
+                print("ERROR: Insufficient API Credits (402 Payment Required)", file=sys.stderr)
+                print("=" * 60, file=sys.stderr)
+                print("\nYour DataForSEO account has insufficient credits.", file=sys.stderr)
+                print("\nActions:", file=sys.stderr)
+                print("  1. Add credits to your account:", file=sys.stderr)
+                print("     https://app.dataforseo.com/billing", file=sys.stderr)
+                print("  2. Check your current balance in the dashboard", file=sys.stderr)
+                print("\nFalling back to heuristic mode.", file=sys.stderr)
+                print("=" * 60 + "\n", file=sys.stderr)
+            else:
+                print("=" * 60, file=sys.stderr)
+                print(f"ERROR: API HTTP Error ({status_code})", file=sys.stderr)
+                print("=" * 60, file=sys.stderr)
+                print(f"\nHTTP Status: {status_code}", file=sys.stderr)
+                print(f"Error: {e}", file=sys.stderr)
+                print("\nFalling back to heuristic mode.", file=sys.stderr)
+                print("=" * 60 + "\n", file=sys.stderr)
+
+            return self._fallback_research(topic, limit)
+        except requests.exceptions.ConnectionError:
+            print("=" * 60, file=sys.stderr)
+            print("ERROR: Network Connection Failed", file=sys.stderr)
+            print("=" * 60, file=sys.stderr)
+            print("\nCannot connect to DataForSEO API.", file=sys.stderr)
+            print("\nChecklist:", file=sys.stderr)
+            print("  1. Check your internet connection", file=sys.stderr)
+            print("  2. Verify you can access: https://api.dataforseo.com", file=sys.stderr)
+            print("  3. Check if a firewall is blocking outbound HTTPS", file=sys.stderr)
+            print("  4. Try disabling VPN if you're using one", file=sys.stderr)
+            print("\nFalling back to heuristic mode.", file=sys.stderr)
+            print("=" * 60 + "\n", file=sys.stderr)
+            return self._fallback_research(topic, limit)
+        except ValueError as e:
+            if "split" in str(e) or ":" in str(e):
+                print("=" * 60, file=sys.stderr)
+                print("ERROR: Invalid API Key Format", file=sys.stderr)
+                print("=" * 60, file=sys.stderr)
+                print("\nAPI key must be in format: 'login:password'", file=sys.stderr)
+                print(f"Error details: {e}", file=sys.stderr)
+                print("\nExamples of correct format:", file=sys.stderr)
+                print("  user@example.com:mypassword123", file=sys.stderr)
+                print("  username:SecureP@ssw0rd", file=sys.stderr)
+                print("\nFalling back to heuristic mode.", file=sys.stderr)
+                print("=" * 60 + "\n", file=sys.stderr)
+            else:
+                print(f"Warning: Value error ({e}). Using fallback.", file=sys.stderr)
             return self._fallback_research(topic, limit)
         except Exception as e:
-            print(f"Warning: API call failed ({e}). Using fallback.", file=sys.stderr)
+            print("=" * 60, file=sys.stderr)
+            print("ERROR: Unexpected API Failure", file=sys.stderr)
+            print("=" * 60, file=sys.stderr)
+            print(f"\nError: {type(e).__name__}: {e}", file=sys.stderr)
+            print("\nThis is an unexpected error. Please report if it persists.", file=sys.stderr)
+            print("\nFalling back to heuristic mode.", file=sys.stderr)
+            print("=" * 60 + "\n", file=sys.stderr)
             return self._fallback_research(topic, limit)
     
     def _parse_api_response(self, data: Dict, topic: str, limit: int) -> List[KeywordData]:
