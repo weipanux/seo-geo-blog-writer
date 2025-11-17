@@ -3,6 +3,11 @@
   "title": "SEO-GEO Blog Writer Configuration",
   "description": "Configuration file for SEO-GEO blog writer tool with content sources and feature settings",
 
+  "dataforseo": {
+    "api_key": null,
+    "_comment": "DataForSEO API credentials for keyword research. Supports Base64-encoded format (login:password) or plain text. Get credentials from https://dataforseo.com"
+  },
+
   "sanity": {
     "project_id": "your-sanity-project-id",
     "dataset": "production",

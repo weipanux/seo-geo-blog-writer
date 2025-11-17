@@ -230,7 +230,8 @@ def get_api_key(api_key: Optional[str] = None, interactive: bool = False) -> Opt
             try:
                 with open(project_config, 'r') as f:
                     config = json.load(f)
-                    api_key = config.get('api_key')
+                    # Look for api_key in dataforseo section
+                    api_key = config.get('dataforseo', {}).get('api_key')
                     if api_key:
                         return decode_base64_credentials(api_key)
             except (json.JSONDecodeError, IOError) as e:
