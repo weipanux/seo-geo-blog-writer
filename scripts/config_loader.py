@@ -126,11 +126,12 @@ class ConfigLoader:
         Get Google Imagen configuration
 
         Args:
-            api_key: CLI-provided API key (highest priority)
-            project_id: CLI-provided project ID
+            api_key: Path to service account JSON file (optional, CLI override)
+                    If not provided, uses gcloud application-default credentials
+            project_id: Google Cloud project ID (required, CLI override)
 
         Returns:
-            Dict with keys: api_key, project_id
+            Dict with keys: api_key (service account path), project_id
         """
         return {
             'api_key': self.get('image_generation', 'google_api_key', 'GOOGLE_API_KEY', api_key),
@@ -162,6 +163,7 @@ class ConfigLoader:
             'min_confidence_auto_insert': self.get('internal_linking', 'min_confidence_auto_insert', None, None, 90),
             'max_links_per_post': self.get('internal_linking', 'max_links_per_post', None, None, 5),
             'cache_ttl_hours': self.get('internal_linking', 'cache_ttl_hours', None, None, 24),
+            'sitemap_url': self.get('content_sources', 'sitemap_url', 'SITEMAP_URL', None),
             'local_markdown_dir': self.get('content_sources', 'local_markdown_dir', 'LOCAL_MARKDOWN_DIR', None)
         }
 

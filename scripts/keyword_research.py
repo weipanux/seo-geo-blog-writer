@@ -192,35 +192,55 @@ def save_keywords_to_cache(topic: str, limit: int, keywords: List['KeywordData']
 def get_api_key(api_key: Optional[str] = None, interactive: bool = False) -> Optional[str]:
     """
     Hybrid credential management following Claude Skills best practices.
-    
+
     Tries multiple methods in order:
     1. Explicitly provided API key (command line argument)
     2. Environment variable (DATAFORSEO_API_KEY)
-    3. Config file (~/.dataforseo-skill/config.json)
-    4. Interactive prompt (if interactive=True)
-    
+    3. Project-local config file (.seo-geo-config.json) - works in containers
+    4. User home config file (~/.dataforseo-skill/config.json)
+    5. Interactive prompt (if interactive=True)
+
     Automatically detects and decodes Base64-encoded credentials from DataForSEO.
-    
+
     Based on: https://medium.com/ducky-ai/the-credential-conundrum-managing-api-keys-in-claude-skills-430c41b21aa8
-    
+
     Args:
         api_key: Explicitly provided API key (highest priority)
                  Can be plain text (login:password) or Base64-encoded
         interactive: Whether to prompt user if no credentials found
-        
+
     Returns:
         API key string in login:password format, or None if not found
     """
     # Method 1: Explicitly provided (command line argument)
     if api_key:
         return decode_base64_credentials(api_key)
-    
+
     # Method 2: Environment variable
     api_key = os.getenv('DATAFORSEO_API_KEY')
     if api_key:
         return decode_base64_credentials(api_key)
-    
-    # Method 3: Config file
+
+    # Method 3: Project-local config file (works in containers)
+    # Check current directory and parent directories up to 3 levels
+    current_dir = Path.cwd()
+    for _ in range(3):
+        project_config = current_dir / '.seo-geo-config.json'
+        if project_config.exists():
+            try:
+                with open(project_config, 'r') as f:
+                    config = json.load(f)
+                    api_key = config.get('api_key')
+                    if api_key:
+                        return decode_base64_credentials(api_key)
+            except (json.JSONDecodeError, IOError) as e:
+                print(f"Warning: Could not read project config file ({e})", file=sys.stderr)
+        # Move up one directory
+        if current_dir.parent == current_dir:
+            break
+        current_dir = current_dir.parent
+
+    # Method 4: User home config file
     config_path = Path.home() / '.dataforseo-skill' / 'config.json'
     if config_path.exists():
         try:
@@ -230,9 +250,9 @@ def get_api_key(api_key: Optional[str] = None, interactive: bool = False) -> Opt
                 if api_key:
                     return decode_base64_credentials(api_key)
         except (json.JSONDecodeError, IOError) as e:
-            print(f"Warning: Could not read config file ({e})", file=sys.stderr)
-    
-    # Method 4: Interactive prompt (if enabled and available)
+            print(f"Warning: Could not read home config file ({e})", file=sys.stderr)
+
+    # Method 5: Interactive prompt (if enabled and available)
     if interactive and getpass:
         try:
             print("DataForSEO API key not found in environment or config file.", file=sys.stderr)
@@ -245,7 +265,7 @@ def get_api_key(api_key: Optional[str] = None, interactive: bool = False) -> Opt
                 return decode_base64_credentials(api_key.strip())
         except (KeyboardInterrupt, EOFError):
             print("\nCancelled. Using fallback mode.", file=sys.stderr)
-    
+
     return None
 
 
@@ -805,11 +825,12 @@ def main():
         print("✓ Using DataForSEO API for research", file=sys.stderr)
     else:
         print("⚠ API key not found. Using heuristic fallback.", file=sys.stderr)
-        print("  Credential options:", file=sys.stderr)
+        print("  Credential options (checked in order):", file=sys.stderr)
         print("  1. Set DATAFORSEO_API_KEY environment variable", file=sys.stderr)
-        print("  2. Create ~/.dataforseo-skill/config.json with {'api_key': 'login:password'}", file=sys.stderr)
-        print("  3. Use --api-key 'login:password' command line argument", file=sys.stderr)
-        print("  4. Use --interactive flag to prompt for credentials", file=sys.stderr)
+        print("  2. Create .seo-geo-config.json in project root (works in containers!)", file=sys.stderr)
+        print("  3. Create ~/.dataforseo-skill/config.json with {'api_key': 'login:password'}", file=sys.stderr)
+        print("  4. Use --api-key 'login:password' command line argument", file=sys.stderr)
+        print("  5. Use --interactive flag to prompt for credentials", file=sys.stderr)
         print("  Note: Supports both plain text (login:password) and Base64-encoded formats", file=sys.stderr)
     
     print("", file=sys.stderr)

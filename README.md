@@ -760,14 +760,34 @@ pip install openai
 - More complex authentication
 
 **Setup:**
-```bash
-# 1. Create Google Cloud project
-# 2. Enable Vertex AI API
-# 3. Get API key and project ID
-export GOOGLE_API_KEY=...
-export GOOGLE_PROJECT_ID=my-project-id
 
-# Install SDK
+**Option 1: Using gcloud CLI (Recommended)**
+```bash
+# 1. Install gcloud CLI from https://cloud.google.com/sdk/docs/install
+# 2. Authenticate and set project
+gcloud auth application-default login
+gcloud config set project YOUR-PROJECT-ID
+
+# 3. Enable Vertex AI API
+gcloud services enable aiplatform.googleapis.com
+
+# 4. Set environment variable
+export GOOGLE_PROJECT_ID=YOUR-PROJECT-ID
+
+# 5. Install SDK
+pip install google-cloud-aiplatform
+```
+
+**Option 2: Using Service Account (for CI/CD)**
+```bash
+# 1. Create service account in Google Cloud Console
+# 2. Grant "Vertex AI User" role
+# 3. Download JSON key file
+# 4. Set environment variables
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+export GOOGLE_PROJECT_ID=YOUR-PROJECT-ID
+
+# 5. Install SDK
 pip install google-cloud-aiplatform
 ```
 
@@ -786,8 +806,8 @@ pip install google-cloud-aiplatform
 # Limit images per post
 python scripts/image_generation.py draft.md --max-images 3
 
-# Use Google Imagen for scale
-export GOOGLE_API_KEY=... GOOGLE_PROJECT_ID=...
+# Use Google Imagen for scale (after gcloud auth setup)
+export GOOGLE_PROJECT_ID=YOUR-PROJECT-ID
 
 # Test with dry-run first
 python scripts/image_generation.py draft.md --dry-run
@@ -798,9 +818,12 @@ python scripts/image_generation.py draft.md --dry-run
 **"No image generation APIs configured"**
 ```bash
 # Solution: Set at least one API key
+
+# OpenAI:
 export OPENAI_API_KEY=sk-...
-# OR
-export GOOGLE_API_KEY=... GOOGLE_PROJECT_ID=...
+
+# OR Google Imagen (after gcloud auth):
+export GOOGLE_PROJECT_ID=YOUR-PROJECT-ID
 ```
 
 **"No image placeholders found"**
@@ -824,6 +847,26 @@ python scripts/image_generation.py draft.md \
 # Solution: Improve alt text with context
 # Bad:  ![Diagram](placeholder)
 # Good: ![Email automation workflow diagram showing trigger sequences](placeholder)
+```
+
+**"Google Imagen content safety filter blocked"**
+```bash
+# Error: "The prompt could not be submitted. This prompt contains sensitive words..."
+#
+# Cause: Google's Responsible AI filters may block prompts with sensitive topics
+# (e.g., mental health terms, relationship issues, medical conditions)
+#
+# Solution: The script automatically filters sensitive words from prompts
+# and uses abstract visual descriptions. If images still don't generate:
+#
+# 1. Check alt text for sensitive keywords
+# 2. Use more abstract, neutral descriptions in image placeholders:
+#    Bad:  ![Person being manipulated and gaslighted](placeholder)
+#    Good: ![Professional illustration about self-awareness](placeholder)
+#
+# 3. Consider switching to OpenAI DALL-E 3 for sensitive topics:
+export OPENAI_API_KEY=sk-...
+python scripts/image_generation.py draft.md --openai-api-key sk-...
 ```
 
 ### Integration with Workflow
@@ -915,10 +958,42 @@ The script uses a **hybrid approach** that tries multiple methods in order:
 
 1. **Command line argument** (`--api-key`) - Highest priority, explicit
 2. **Environment variable** (`DATAFORSEO_API_KEY`) - Standard approach
-3. **Config file** (`~/.dataforseo-skill/config.json`) - Persistent storage
-4. **Interactive prompt** (`--interactive` flag) - User-friendly fallback
+3. **Project-local config** (`.seo-geo-config.json`) - Works in containers (see below)
+4. **User home config** (`~/.dataforseo-skill/config.json`) - Persistent storage
+5. **Interactive prompt** (`--interactive` flag) - User-friendly fallback
 
 This ensures the script works for everyone, regardless of their technical level or environment.
+
+### 🐳 Claude Code / Container Usage
+
+**Issue:** Claude Code runs in a container that can't access `~/.dataforseo-skill/config.json` in your local filesystem.
+
+**Solution Options:**
+
+**Option 1: Project-Local Config (Easiest for containers)**
+```bash
+# Create config in project root (gitignored automatically)
+cat > .seo-geo-config.json << EOF
+{
+  "api_key": "your_login:your_password"
+}
+EOF
+
+# Secure permissions
+chmod 600 .seo-geo-config.json
+```
+
+⚠️ **Security Trade-off:** Config is in project directory (even though gitignored). Claude has access to it.
+
+**Option 2: Environment Variable (Most Secure)**
+
+Configure Claude Code to pass environment variables to container (method varies by setup).
+
+**Trade-offs:**
+- **Project-local config:** ✅ Easy to set up, ❌ File in project dir (even if gitignored)
+- **Environment variable:** ✅ Most secure, ❌ Requires container configuration
+
+**Recommendation:** Use project-local config for convenience, ensure `.seo-geo-config.json` is in `.gitignore`.
 
 ### Method 1: Command Line Argument (Explicit)
 
@@ -1079,16 +1154,34 @@ python scripts/content_sources.py --sanity-test
 #### Setup: Google Imagen (for Image Generation)
 
 **What you need:**
-- `google_api_key` - Your Google Cloud API key
 - `google_project_id` - Your GCP project ID
+- Authentication via gcloud CLI OR service account JSON
 
-**Where to find:**
-1. Go to https://console.cloud.google.com
-2. Select your project or create new one
-3. Enable "Vertex AI API"
-4. Go to APIs & Services → Credentials
-5. Create API Key (or use existing)
-6. Copy project ID from dashboard
+**Setup Option 1: gcloud CLI (Recommended)**
+1. Install gcloud CLI from https://cloud.google.com/sdk/docs/install
+2. Authenticate and set project:
+   ```bash
+   gcloud auth application-default login
+   gcloud config set project YOUR-PROJECT-ID
+   ```
+3. Enable Vertex AI API:
+   ```bash
+   gcloud services enable aiplatform.googleapis.com
+   ```
+4. Set environment variable:
+   ```bash
+   export GOOGLE_PROJECT_ID=YOUR-PROJECT-ID
+   ```
+
+**Setup Option 2: Service Account (for CI/CD)**
+1. Create service account in Google Cloud Console
+2. Grant "Vertex AI User" role
+3. Download JSON key file
+4. Set environment variables:
+   ```bash
+   export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+   export GOOGLE_PROJECT_ID=YOUR-PROJECT-ID
+   ```
 
 **Install library:**
 ```bash
@@ -1102,6 +1195,8 @@ python scripts/image_generation.py test-draft.md --dry-run
 ```
 
 **Cost:** $0.02/image, $2,000 startup credit available
+
+**Important:** Google Imagen has content safety filters that may block sensitive topics. See troubleshooting section for details.
 
 #### Setup: OpenAI DALL-E 3 (Fallback for Images)
 

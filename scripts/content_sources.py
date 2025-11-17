@@ -2,10 +2,11 @@
 """
 Multi-Source Content Discovery for Internal Linking
 
-Supports:
-- Sanity CMS API (priority 1)
-- Local Markdown files (priority 2)
-- Fallback to empty list
+Supports (in priority order):
+1. Sitemap XML (works in Claude Code containers)
+2. Local Markdown files (works in all environments)
+3. Sanity CMS API (blocked in Claude Code containers)
+4. Fallback to empty list
 
 Implements 24hr caching to minimize API calls and improve performance.
 """
@@ -14,6 +15,7 @@ import json
 import os
 import sys
 import requests
+import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, asdict
 from pathlib import Path
@@ -353,6 +355,150 @@ class LocalMarkdownSource(ContentSource):
         return [phrase for phrase, count in counter.most_common(10) if count >= 2]
 
 
+class SitemapSource(ContentSource):
+    """
+    Sitemap XML content source
+
+    Fetches and parses XML sitemap to discover published content.
+    Works well in containerized environments (Claude Code) since
+    sitemaps are typically publicly accessible.
+    """
+
+    def __init__(self, sitemap_url: str = None, config_path: Path = None):
+        """
+        Initialize sitemap source
+
+        Args:
+            sitemap_url: URL to sitemap.xml (CLI override)
+            config_path: Path to .seo-geo-config.json (default: ./seo-geo-config.json)
+        """
+        # Load from config file with fallback
+        config = ConfigLoader(config_path)
+        linking_config = config.get_internal_linking_config()
+
+        self.sitemap_url = sitemap_url or linking_config.get('sitemap_url')
+
+    def is_available(self) -> bool:
+        """Check if sitemap URL is configured"""
+        return bool(self.sitemap_url)
+
+    def fetch_content(self) -> List[ContentItem]:
+        """
+        Parse sitemap XML to extract content URLs
+
+        Supports both standard sitemap format and sitemap index.
+        Extracts: URL, last modified date
+        """
+        if not self.is_available():
+            raise ValueError("Sitemap URL not configured")
+
+        try:
+            response = requests.get(self.sitemap_url, timeout=10)
+            response.raise_for_status()
+        except requests.RequestException as e:
+            print(f"Error fetching sitemap from {self.sitemap_url}: {e}", file=sys.stderr)
+            raise
+
+        items = []
+
+        # Parse XML
+        try:
+            root = ET.fromstring(response.content)
+        except ET.ParseError as e:
+            print(f"Error parsing sitemap XML: {e}", file=sys.stderr)
+            raise
+
+        # Handle both sitemap and sitemapindex formats
+        # Namespace handling for sitemap.org schema
+        ns = {'ns': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
+
+        # Check if this is a sitemap index
+        sitemaps = root.findall('ns:sitemap', ns)
+        if sitemaps:
+            # This is a sitemap index, recursively fetch child sitemaps
+            for sitemap in sitemaps:
+                loc = sitemap.find('ns:loc', ns)
+                if loc is not None:
+                    try:
+                        items.extend(self._fetch_sitemap(loc.text, ns))
+                    except Exception as e:
+                        print(f"Warning: Failed to fetch child sitemap {loc.text}: {e}", file=sys.stderr)
+                        continue
+        else:
+            # This is a regular sitemap
+            items = self._fetch_sitemap(self.sitemap_url, ns, root=root)
+
+        return items
+
+    def _fetch_sitemap(self, url: str, ns: dict, root: ET.Element = None) -> List[ContentItem]:
+        """
+        Fetch and parse a single sitemap
+
+        Args:
+            url: Sitemap URL
+            ns: XML namespace dict
+            root: Pre-parsed XML root (optional, if already fetched)
+
+        Returns:
+            List of ContentItems
+        """
+        if root is None:
+            try:
+                response = requests.get(url, timeout=10)
+                response.raise_for_status()
+                root = ET.fromstring(response.content)
+            except (requests.RequestException, ET.ParseError) as e:
+                print(f"Error fetching/parsing sitemap {url}: {e}", file=sys.stderr)
+                return []
+
+        items = []
+        urls = root.findall('ns:url', ns)
+
+        for url_elem in urls:
+            loc = url_elem.find('ns:loc', ns)
+            if loc is None:
+                continue
+
+            url_text = loc.text
+
+            # Extract lastmod if available
+            lastmod = url_elem.find('ns:lastmod', ns)
+            published_date = lastmod.text if lastmod is not None else None
+
+            # Extract title from URL slug (best effort)
+            from urllib.parse import urlparse
+            parsed = urlparse(url_text)
+            path_parts = [p for p in parsed.path.strip('/').split('/') if p]  # Filter empty parts
+
+            # Skip non-article pages (homepage, paginated lists, etc.)
+            # Only include pages with meaningful slugs (typically 2+ path segments for /blog/article-name)
+            if not path_parts:
+                # Homepage or root - skip for internal linking
+                continue
+
+            # Get the last meaningful segment as the slug
+            slug = path_parts[-1]
+
+            # Skip pagination and category pages
+            if parsed.query or slug in ['blog', 'pricing', 'privacy', 'terms', 'about', 'contact']:
+                # Skip: query params (pagination), generic pages (not articles)
+                continue
+
+            # Convert slug to title (replace hyphens/underscores with spaces, title case)
+            title = slug.replace('-', ' ').replace('_', ' ').title()
+
+            items.append(ContentItem(
+                url=parsed.path,  # Use path only (relative URL)
+                title=title,
+                excerpt=f"Content from {url_text}",
+                keywords=[],  # Sitemaps don't contain keywords
+                published_date=published_date,
+                source='sitemap'
+            ))
+
+        return items
+
+
 class ContentCache:
     """
     Cache content items to avoid repeated API calls
@@ -437,13 +583,15 @@ class ContentDiscovery:
     """
     Auto-detect and fetch content from available sources
 
-    Priority order:
-    1. Sanity (if configured)
-    2. Local markdown (if provided)
-    3. Fallback: empty list
+    Priority order (first available source wins):
+    1. Sitemap (if configured) - Best for Claude Code containers
+    2. Local markdown (if provided) - Works in all environments
+    3. Sanity CMS (if configured) - Blocked in Claude Code containers
+    4. Fallback: empty list
     """
 
     def __init__(self,
+                 sitemap_url: str = None,
                  sanity_project_id: str = None,
                  sanity_dataset: str = None,
                  sanity_token: str = None,
@@ -454,6 +602,7 @@ class ContentDiscovery:
         Initialize content discovery
 
         Args:
+            sitemap_url: URL to sitemap.xml (CLI override)
             sanity_project_id: Sanity project ID (CLI override)
             sanity_dataset: Sanity dataset name (CLI override)
             sanity_token: Optional Sanity read token (CLI override)
@@ -469,7 +618,22 @@ class ContentDiscovery:
         ttl = cache_ttl_hours if cache_ttl_hours is not None else linking_config['cache_ttl_hours']
         self.cache = ContentCache(ttl_hours=ttl)
 
-        # Initialize Sanity source (uses config loader internally)
+        # Priority 1: Sitemap source (works in containers)
+        sitemap_source = SitemapSource(
+            sitemap_url=sitemap_url,
+            config_path=config_path
+        )
+        if sitemap_source.is_available():
+            self.sources.append(sitemap_source)
+
+        # Priority 2: Local markdown source
+        local_dir = local_content_dir or linking_config['local_markdown_dir']
+        if local_dir:
+            local_source = LocalMarkdownSource(Path(local_dir))
+            if local_source.is_available():
+                self.sources.append(local_source)
+
+        # Priority 3: Sanity source (blocked in Claude Code containers)
         sanity_source = SanitySource(
             project_id=sanity_project_id,
             dataset=sanity_dataset,
@@ -479,21 +643,15 @@ class ContentDiscovery:
         if sanity_source.is_available():
             self.sources.append(sanity_source)
 
-        # Initialize local markdown source
-        local_dir = local_content_dir or linking_config['local_markdown_dir']
-        if local_dir:
-            local_source = LocalMarkdownSource(Path(local_dir))
-            if local_source.is_available():
-                self.sources.append(local_source)
-
     def discover_content(self, use_cache: bool = True) -> List[ContentItem]:
         """
         Discover content from available sources
 
-        Priority:
-        1. Sanity (if configured)
-        2. Local markdown (if provided)
-        3. Fallback: empty list
+        Priority (first available source wins):
+        1. Sitemap (if configured) - Best for Claude Code containers
+        2. Local markdown (if provided) - Works in all environments
+        3. Sanity CMS (if configured) - Blocked in Claude Code containers
+        4. Fallback: empty list
 
         Args:
             use_cache: Use cached results if available
@@ -538,10 +696,11 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Discover content for internal linking")
-    parser.add_argument("--sanity-project-id", help="Sanity project ID")
+    parser.add_argument("--sitemap-url", help="URL to sitemap.xml (priority 1)")
+    parser.add_argument("--sanity-project-id", help="Sanity project ID (priority 3)")
     parser.add_argument("--sanity-dataset", default="production", help="Sanity dataset")
     parser.add_argument("--sanity-token", help="Sanity read token (for private datasets)")
-    parser.add_argument("--local-content", type=Path, help="Local markdown directory")
+    parser.add_argument("--local-content", type=Path, help="Local markdown directory (priority 2)")
     parser.add_argument("--no-cache", action="store_true", help="Skip cache")
     parser.add_argument("--clear-cache", action="store_true", help="Clear cache and exit")
     parser.add_argument("--format", choices=['json', 'summary'], default='summary', help="Output format")
@@ -557,6 +716,7 @@ def main():
 
     # Initialize discovery
     discovery = ContentDiscovery(
+        sitemap_url=args.sitemap_url,
         sanity_project_id=args.sanity_project_id,
         sanity_dataset=args.sanity_dataset,
         sanity_token=args.sanity_token,

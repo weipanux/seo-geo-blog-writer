@@ -12,8 +12,9 @@
   },
 
   "content_sources": {
+    "sitemap_url": null,
     "local_markdown_dir": null,
-    "_comment": "Path to local markdown blog posts directory (e.g., './blog-posts' or '/Users/you/blog')"
+    "_comment": "Priority 1: sitemap_url (e.g., 'https://yourdomain.com/sitemap.xml') - Best for Claude Code containers. Priority 2: local_markdown_dir (e.g., './blog-posts') - Works in all environments"
   },
 
   "internal_linking": {
@@ -31,12 +32,11 @@
 
   "image_generation": {
     "enabled": false,
-    "google_api_key": null,
     "google_project_id": null,
     "openai_api_key": null,
     "max_images_per_post": 5,
     "output_dir": "./generated_images",
-    "_comment": "Image generation will be available in v2.2 Week 3. Set enabled=true when ready."
+    "_comment": "Image generation available. Google Imagen requires gcloud auth (run: gcloud auth application-default login) OR set GOOGLE_APPLICATION_CREDENTIALS env var. Only google_project_id needs to be configured here. OpenAI only needs openai_api_key. Cost: Google $0.02/img, OpenAI $0.04-$0.08/img. Set enabled=true when ready."
   },
 
   "_usage": {
