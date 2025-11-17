@@ -1,6 +1,12 @@
 # SEO-GEO Blog Writer Skill v2.2
 
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+[![Status](https://img.shields.io/badge/Status-Production%20Ready-green.svg)]()
+[![Version](https://img.shields.io/badge/Version-2.2-blue.svg)]()
+
 Claude skill for creating blog posts optimized for both traditional search engines (SEO) and generative AI citations (GEO). Content ranks in Google AND gets cited by ChatGPT, Perplexity, and Claude.
+
+**License:** This project is licensed under [CC BY-NC-SA 4.0](LICENSE) - free for personal and educational use, commercial use prohibited. See [License](#license) section for details.
 
 ## 🚀 Quick Start (30 seconds)
 
@@ -2128,8 +2134,44 @@ Compare the workflows and pick your favorite! 🎉
 
 ---
 
+## License
+
+### CC BY-NC-SA 4.0 (Attribution-NonCommercial-ShareAlike 4.0 International)
+
+**Copyright © 2025 Wei Pan**
+
+This work is licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License](https://creativecommons.org/licenses/by-nc-sa/4.0/).
+
+#### ✅ You ARE allowed to:
+- **Use** this skill for personal blog writing and content creation
+- **Fork** and modify for your own projects
+- **Learn** from the code and build your own tools
+- **Share** with others (with attribution)
+- **Contribute** improvements back to the community
+- **Use** in educational or research contexts
+
+#### ❌ You are NOT allowed to:
+- **Sell** this skill or modified versions as a product
+- **Offer** this skill as a paid service or SaaS platform
+- **Use** this skill as part of a commercial offering for profit
+- **Monetize** derivatives or forks of this work
+- **Remove** attribution or claim this work as your own
+
+#### 📋 Requirements:
+- **Attribution**: You must give appropriate credit and link to this license
+- **ShareAlike**: Derivatives must use the same CC BY-NC-SA 4.0 license
+- **Indicate Changes**: If you modify the work, you must indicate what was changed
+
+#### 💡 Want to use this commercially?
+If you're interested in commercial use, please contact the author to discuss licensing options.
+
+**Full License Text:** See [LICENSE](LICENSE) file
+
+---
+
 **Version:** 2.2
 **Date:** November 16, 2025
+**Author:** Wei Pan
 **Compatibility:** Claude Skills Framework
 **Status:** Production Ready ✅
 
