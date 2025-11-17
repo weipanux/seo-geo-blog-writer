@@ -27,11 +27,16 @@ class ConfigLoader:
         Initialize config loader
 
         Args:
-            config_path: Path to config file (default: ~/.seo-geo-skill/config.json)
+            config_path: Path to config file (default: auto-detect .seo-geo-config.json)
         """
         if config_path is None:
-            # Default to user's home directory (secure location outside skill directory)
-            config_path = Path.home() / '.seo-geo-skill' / 'config.json'
+            # Auto-detect: first check project root, then fallback to home directory
+            project_config = Path.cwd() / '.seo-geo-config.json'
+            if project_config.exists():
+                config_path = project_config
+            else:
+                # Fallback to legacy location
+                config_path = Path.home() / '.seo-geo-skill' / 'config.json'
 
         self.config_path = config_path
         self._config_cache: Optional[Dict[str, Any]] = None

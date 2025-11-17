@@ -6,9 +6,9 @@ Discovers content from multiple sources and automatically inserts
 high-confidence internal links (≥90 relevance).
 
 Content sources (priority order):
-1. Sanity CMS API (if configured)
+1. Sitemap XML (if configured) - Best for Claude Code/containers
 2. Local markdown files (if provided)
-3. Fallback to empty list
+3. Sanity CMS API (if configured) - Blocked in Claude Code containers
 """
 
 import sys
@@ -114,26 +114,28 @@ def main():
         description="Auto-insert internal links into blog draft",
         epilog="""
 Examples:
-  # With Sanity CMS:
-  python auto_internal_linking.py draft.md --sanity-project-id abc123
+  # With sitemap (recommended for Claude Code/containers):
+  python auto_internal_linking.py draft.md --sitemap-url https://yourdomain.com/sitemap.xml
 
   # With local markdown:
   python auto_internal_linking.py draft.md --local-content ./blog-posts
 
   # Dry run (show suggestions without inserting):
-  python auto_internal_linking.py draft.md --local-content ./posts --dry-run
+  python auto_internal_linking.py draft.md --sitemap-url https://example.com/sitemap.xml --dry-run
 
   # Adjust confidence threshold:
-  python auto_internal_linking.py draft.md --local-content ./posts --min-confidence 85
+  python auto_internal_linking.py draft.md --sitemap-url https://example.com/sitemap.xml --min-confidence 85
         """
     )
     parser.add_argument("draft", type=Path, help="Draft blog post file")
 
     # Content source options
-    parser.add_argument("--sanity-project-id", help="Sanity project ID (or set SANITY_PROJECT_ID env var)")
+    parser.add_argument("--sitemap-url", help="Sitemap URL (e.g., https://yourdomain.com/sitemap.xml) - Recommended for containers")
+    parser.add_argument("--local-content", type=Path, help="Local markdown directory")
+    parser.add_argument("--sanity-project-id", help="Sanity project ID - Note: Blocked in Claude Code containers")
     parser.add_argument("--sanity-dataset", default="production", help="Sanity dataset (default: production)")
     parser.add_argument("--sanity-token", help="Sanity read token for private datasets")
-    parser.add_argument("--local-content", type=Path, help="Local markdown directory")
+    parser.add_argument("--config-path", type=Path, help="Path to .seo-geo-config.json (default: auto-detect)")
 
     # Linking options
     parser.add_argument("--min-confidence", type=int, default=90, help="Min relevance for auto-insert (default: 90)")
@@ -156,10 +158,12 @@ Examples:
     # Discover content
     print("🔍 Discovering existing content...", file=sys.stderr)
     discovery = ContentDiscovery(
+        sitemap_url=args.sitemap_url,
         sanity_project_id=args.sanity_project_id,
         sanity_dataset=args.sanity_dataset,
         sanity_token=args.sanity_token,
-        local_content_dir=args.local_content
+        local_content_dir=args.local_content,
+        config_path=args.config_path
     )
 
     content_items = discovery.discover_content(use_cache=not args.no_cache)
@@ -168,10 +172,10 @@ Examples:
     if not site_pages:
         print("\n❌ No existing content found.", file=sys.stderr)
         print("\nPlease configure at least one content source:", file=sys.stderr)
-        print("  --sanity-project-id <project_id>  (Sanity CMS)", file=sys.stderr)
-        print("  --local-content <directory>        (Local markdown files)", file=sys.stderr)
-        print("\nAlternatively, set environment variable:", file=sys.stderr)
-        print("  export SANITY_PROJECT_ID=your_project_id", file=sys.stderr)
+        print("  --sitemap-url <url>          (Recommended: works in containers)", file=sys.stderr)
+        print("  --local-content <directory>  (Local markdown files)", file=sys.stderr)
+        print("\nAlternatively, use .seo-geo-config.json:", file=sys.stderr)
+        print('  {"content_sources": {"sitemap_url": "https://yourdomain.com/sitemap.xml"}}', file=sys.stderr)
         sys.exit(1)
 
     print(f"✓ Found {len(site_pages)} existing pages for internal linking", file=sys.stderr)
