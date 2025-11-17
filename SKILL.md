@@ -26,12 +26,15 @@ Both modes follow the same four-phase workflow after keyword selection.
 
 ## Workflow Overview
 
-Execute in four phases:
+Execute in seven phases:
 
 1. **Research**: Gather requirements, conduct keyword research, analyze search intent, identify citation-worthy sources
 2. **Outline**: Select content pattern, create structured outline with SEO-optimized headers and GEO-friendly sections
 3. **Draft**: Write comprehensive content following E-E-A-T principles with proper keyword placement
-4. **Optimize**: Validate against checklists, generate schema markup, provide final deliverables
+4. **Optimize**: Initial content optimization and refinement
+5. **Auto Internal Linking** (NEW v2.2): Discover and insert high-confidence internal links from Sanity/local content
+6. **Image Generation** (Coming Week 3): Auto-generate and insert images using AI
+7. **Final Validation**: Iterative validation with auto-fix for FAQ, author bio, schema, title
 
 ## Example Usage
 
@@ -284,7 +287,208 @@ Load `references/geo-optimization.md` for AI citation formatting:
 - Provide direct, concise answers in FAQ (40-60 word paragraphs)
 - Include "what, why, how" question variations
 
-### Phase 5: Validate and Optimize
+### Phase 5: Auto Internal Linking (NEW v2.2)
+
+**Automated internal link discovery and insertion:**
+
+1. **Discover existing content from configured sources:**
+   ```bash
+   # Test content discovery first
+   python scripts/content_sources.py \
+     --sanity-project-id $SANITY_PROJECT_ID \
+     --local-content ./blog-posts
+   ```
+
+   **Content source priority:**
+   1. Sanity CMS API (if `SANITY_PROJECT_ID` configured)
+   2. Local markdown directory (if `--local-content` provided)
+   3. Fallback to empty (no links inserted)
+
+2. **Auto-insert internal links into draft:**
+   ```bash
+   python scripts/auto_internal_linking.py /tmp/blog_draft.md \
+     --sanity-project-id $SANITY_PROJECT_ID \
+     --min-confidence 90 \
+     --max-links 5 \
+     --output /tmp/blog_draft_linked.md
+   ```
+
+3. **Link insertion process:**
+   The script automatically:
+   - Discovers existing blog posts from configured sources
+   - Analyzes relevance between draft and existing content
+   - Identifies high-confidence linking opportunities (≥90 relevance)
+   - Inserts markdown links for first keyword occurrence
+   - Avoids over-linking (max 5 links by default)
+
+   **Example output:**
+   ```
+   ✓ Found 50 existing pages for internal linking
+   ✓ Found 8 total suggestions
+     → 5 high-confidence (≥90)
+
+   ✓ Successfully inserted 5 links:
+
+   1. Email marketing → /blog/email-marketing-guide (95)
+   2. Marketing automation → /blog/automation-best-practices (92)
+   3. Customer segmentation → /blog/segmentation-strategies (91)
+   4. Email campaigns → /blog/campaign-optimization (90)
+   5. ROI tracking → /blog/marketing-metrics (90)
+   ```
+
+4. **Configuration options:**
+
+   **Via command line:**
+   ```bash
+   # Sanity CMS (recommended)
+   python scripts/auto_internal_linking.py draft.md \
+     --sanity-project-id your-project-id \
+     --sanity-dataset production
+
+   # Local markdown files
+   python scripts/auto_internal_linking.py draft.md \
+     --local-content ./blog-posts
+
+   # Adjust confidence threshold
+   python scripts/auto_internal_linking.py draft.md \
+     --local-content ./posts \
+     --min-confidence 85  # Lower threshold for more links
+   ```
+
+   **Via environment variables:**
+   ```bash
+   export SANITY_PROJECT_ID=your-project-id
+   export SANITY_DATASET=production
+   python scripts/auto_internal_linking.py draft.md
+   ```
+
+   **Via config file:** `.seo-geo-config.json`
+   ```json
+   {
+     "sanity": {
+       "project_id": "your-project-id",
+       "dataset": "production"
+     },
+     "internal_linking": {
+       "min_confidence_auto_insert": 90,
+       "max_links_per_post": 5
+     }
+   }
+   ```
+
+5. **Continue to Phase 6** (Image Generation) or **Phase 7** (Final Validation)
+
+### Phase 6: Image Generation (NEW v2.2)
+
+**Automated image generation and insertion using AI APIs:**
+
+Generate professional blog post images automatically using Google Imagen or OpenAI DALL-E 3. The system extracts image placeholders, classifies image types, generates appropriate images, and inserts them into your draft.
+
+**1. Add image placeholders to your draft (optional):**
+
+   During Phase 4 (drafting), add placeholders where you want images:
+   ```markdown
+   ![Email marketing dashboard showing analytics](placeholder)
+   ![Workflow diagram showing email automation steps](placeholder)
+   ```
+
+   **Note:** Featured/hero image is auto-generated if not present.
+
+**2. Generate images:**
+
+   **Option A - OpenAI DALL-E 3 (easiest setup):**
+   ```bash
+   export OPENAI_API_KEY=sk-...
+
+   python scripts/image_generation.py /tmp/blog_draft.md \
+     --output /tmp/blog_draft_with_images.md \
+     --max-images 5
+   ```
+
+   **Option B - Google Imagen (requires Google Cloud):**
+   ```bash
+   export GOOGLE_API_KEY=...
+   export GOOGLE_PROJECT_ID=my-project
+
+   python scripts/image_generation.py /tmp/blog_draft.md \
+     --output /tmp/blog_draft_with_images.md \
+     --max-images 5
+   ```
+
+   **Option C - Use configuration file:**
+   ```bash
+   # Configure in .seo-geo-config.json:
+   {
+     "image_generation": {
+       "enabled": true,
+       "google_api_key": "...",
+       "google_project_id": "...",
+       "openai_api_key": "sk-...",
+       "max_images_per_post": 5,
+       "output_dir": "./generated_images"
+     }
+   }
+
+   python scripts/image_generation.py /tmp/blog_draft.md \
+     --output /tmp/blog_draft_with_images.md
+   ```
+
+**3. Test extraction without API keys (dry-run):**
+   ```bash
+   python scripts/image_generation.py /tmp/blog_draft.md --dry-run
+
+   # Output shows:
+   # - Number of images that would be generated
+   # - Image type and style classification
+   # - Alt text and context for each image
+   ```
+
+**How it works:**
+
+1. **Extract Image Needs:**
+   - Finds all `![alt text](placeholder)` patterns
+   - Auto-adds featured/hero image if none exists
+   - Classifies image type (featured, section, diagram)
+   - Determines appropriate style (photorealistic, illustration, diagram)
+
+2. **Generate Images:**
+   - Priority 1: Google Imagen ($0.02/image, $2000 startup credit)
+   - Priority 2: OpenAI DALL-E 3 ($0.04-$0.08/image, Microsoft credits)
+   - Optimized prompts for each style and image type
+   - Downloads and saves images locally
+
+3. **Insert Into Draft:**
+   - Replaces `(placeholder)` with actual image paths
+   - Updates alt text for SEO
+   - Preserves markdown formatting
+
+**Image Classification:**
+
+- **Featured/Hero Images:** Photorealistic style, 1792x1024px
+  - Trigger: First image or auto-generated from title
+  - Example: "Professional email marketing dashboard"
+
+- **Section Images:** Illustration style, 1024x1024px
+  - Trigger: Images within content sections
+  - Example: "Email list building strategy"
+
+- **Diagrams/Infographics:** Technical diagram style, 1024x1024px
+  - Trigger: Keywords like "diagram", "flowchart", "workflow", "infographic"
+  - Example: "Email automation workflow diagram"
+
+**Cost tracking:**
+The script shows total generation cost and per-image pricing for budget management.
+
+**Generated output structure:**
+```
+/tmp/blog_draft_with_images.md    ← Updated draft with images
+./generated_images/                ← Image directory
+  ├── image_abc123.png             ← Featured image
+  ├── image_def456.png             ← Section image 1
+  └── image_ghi789.png             ← Diagram
+```
+
+### Phase 7: Final Validation and Auto-Fix
 
 **Validation Protocol (ALWAYS EXECUTE):**
 
@@ -293,18 +497,58 @@ Load `references/geo-optimization.md` for AI citation formatting:
    # Save draft to /tmp/blog_draft.md
    ```
 
-2. **Execute validation script:**
+2. **Execute iterative validation with auto-fix:**
    ```bash
-   python scripts/validate_structure.py /tmp/blog_draft.md
+   python scripts/iterative_validation.py /tmp/blog_draft.md \
+     --max-iterations 3 \
+     --target-score 80 \
+     --output /tmp/blog_draft_final.md
    ```
 
-3. **Interpret results:**
-   - Score ≥80: Excellent, proceed to delivery
-   - Score 60-79: Address warnings, then deliver
-   - Score <60: Fix all FAILED checks, re-validate
+3. **Iterative validation process:**
+   The script automatically:
+   - Validates current draft state
+   - Auto-fixes common issues (FAQ, author bio, schema templates, title length)
+   - Re-validates after fixes
+   - Stops when: score ≥80 OR max 3 iterations OR no more auto-fixable issues
 
-4. **Handle script failure:**
-   If script unavailable, manually verify using `references/seo-checklist.md`:
+   **Auto-fixable items:**
+   - Missing FAQ section → Generates 4-6 questions from H2 headings
+   - Missing author bio → Adds template (user fills details later)
+   - Short title (<50 chars) → Expands with year or descriptive phrases
+   - Missing schema → Adds BlogPosting and FAQPage templates
+
+   **Non-auto-fixable items** (require manual attention):
+   - Low word count → Note thin sections for expansion
+   - Missing internal/external links → Needs content research
+   - Missing images → Needs image sourcing or generation
+   - Low readability score → Needs content restructuring
+
+4. **Interpret results:**
+   ```
+   Final Score: 88/100
+
+   Fixes Applied (4):
+     ✓ Added FAQ section with 6 questions
+     ✓ Added author bio template (requires user completion)
+     ✓ Expanded title: 'Tips' → 'Complete Tips Guide 2025'
+     ✓ Added schema markup templates (requires completion)
+
+   ✓ PASSED (8 checks): Title optimal, Word count good, FAQ present...
+   ⚠ WARNINGS (3 items): Internal links low, Images needed...
+   ```
+
+   - Score ≥80: Excellent, proceed to delivery
+   - Score 60-79: Review warnings, address critical ones
+   - Score <60: Fix FAILED checks manually, re-run validation
+
+5. **Complete placeholders in auto-generated content:**
+   - **Author bio**: Replace `[Author Name]`, `[job title]`, `[X years]` with real details
+   - **Schema markup**: Fill in `[YYYY-MM-DD]`, `[Meta description]`, `[Featured image URL]`
+   - **FAQ answers**: Expand auto-generated summaries if needed
+
+6. **Handle script failure:**
+   If script unavailable, use manual validation with `references/seo-checklist.md`:
    - Primary keyword in title, H1, first 100 words, URL slug, meta description
    - 2-3 H2 headings with keyword variations
    - Internal links (3-5) and external authority links (2-4)
@@ -313,15 +557,10 @@ Load `references/geo-optimization.md` for AI citation formatting:
    - Author bio with credentials
    - Meta title (50-60 chars) and description (145-155 chars)
 
-5. **Generate schema markup:**
-   Use `assets/structured-data-examples.json` as template
-   - Create BlogPosting schema with author and publication data
-   - Create FAQPage schema for FAQ section
-   - Include HowTo schema if applicable
-
-6. **Deliver final package:**
-   - Complete blog post in markdown
-   - Schema markup code blocks
+7. **Deliver final package:**
+   - Complete blog post with auto-fixes applied (`/tmp/blog_draft_final.md`)
+   - Validation report showing score and fixes applied
+   - Schema markup code blocks (with placeholders to complete)
    - SEO checklist with verification status
    - Image suggestions with alt text
    - Internal linking recommendations

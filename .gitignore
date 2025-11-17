@@ -39,6 +39,7 @@ venv.bak/
 .project
 .pydevproject
 .settings/
+*.code-workspace
 
 # macOS
 .DS_Store
@@ -74,3 +75,4 @@ tmp/
 # Output files
 output/
 generated/
+.seo-geo-config.json

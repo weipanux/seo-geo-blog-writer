@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SEO-GEO Blog Writer Configuration",
+  "description": "Configuration file for SEO-GEO blog writer tool with content sources and feature settings",
+
+  "sanity": {
+    "project_id": "your-sanity-project-id",
+    "dataset": "production",
+    "api_version": "2023-05-03",
+    "token": null,
+    "_comment": "Token is optional - only needed for private datasets. Leave null for public datasets."
+  },
+
+  "content_sources": {
+    "local_markdown_dir": null,
+    "_comment": "Path to local markdown blog posts directory (e.g., './blog-posts' or '/Users/you/blog')"
+  },
+
+  "internal_linking": {
+    "min_confidence_auto_insert": 90,
+    "max_links_per_post": 5,
+    "cache_ttl_hours": 24,
+    "_comment": "Links with relevance ≥ min_confidence_auto_insert will be automatically inserted"
+  },
+
+  "validation": {
+    "target_score": 80,
+    "max_iterations": 3,
+    "_comment": "Iterative validation stops when target_score reached OR max_iterations hit"
+  },
+
+  "image_generation": {
+    "enabled": false,
+    "google_api_key": null,
+    "google_project_id": null,
+    "openai_api_key": null,
+    "max_images_per_post": 5,
+    "output_dir": "./generated_images",
+    "_comment": "Image generation will be available in v2.2 Week 3. Set enabled=true when ready."
+  },
+
+  "_usage": {
+    "location": "Place this file at project root as .seo-geo-config.json (without .template)",
+    "priority": "Config file settings override environment variables but are overridden by CLI arguments",
+    "security": "Add .seo-geo-config.json to .gitignore to avoid committing credentials"
+  }
+}

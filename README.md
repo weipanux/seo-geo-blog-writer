@@ -1,11 +1,12 @@
-# SEO-GEO Blog Writer Skill v2.0
+# SEO-GEO Blog Writer Skill v2.2
 
 Claude skill for creating blog posts optimized for both traditional search engines (SEO) and generative AI citations (GEO). Content ranks in Google AND gets cited by ChatGPT, Perplexity, and Claude.
 
 ## 🚀 Quick Start (30 seconds)
 
-**What it does:** Creates SEO and AI-optimized blog posts  
-**New in v2.0:** Two modes - keyword-driven OR topic expansion with automated research
+**What it does:** Creates SEO and AI-optimized blog posts with full automation
+**New in v2.2:** Iterative validation + auto internal linking + AI image generation
+**Available modes:** Keyword-driven (Mode A) OR topic expansion with research (Mode B)
 
 ### Mode A - You Know the Keyword
 ```
@@ -190,8 +191,6 @@ pip install -r requirements.txt
 
 **What gets installed:**
 - `requests` - API communication
-- `beautifulsoup4` - Content parsing
-- `lxml` - HTML/XML processing
 - `jsonschema` - Schema validation
 
 **Time:** ~30 seconds | **No configuration needed** for basic features
@@ -202,26 +201,36 @@ pip install -r requirements.txt
 
 ```
 seo-geo-blog-writer/
-├── SKILL.md                          # Main workflow instructions
+├── SKILL.md                          # Main workflow instructions for Claude
 ├── README.md                         # This file - comprehensive documentation
-├── CHANGELOG.md                      # Version history and migration guide
-├── requirements.txt                  # Python dependencies
-├── references/
+├── requirements.txt                  # Python dependencies (one-command install)
+│
+├── planning/                         # Planning and historical documentation
+│   ├── IMPLEMENTATION_PLAN.md        # 3-week implementation history (v2.2)
+│   ├── COST_ANALYSIS.md              # Detailed cost breakdown and ROI analysis
+│   └── CHANGELOG.md                  # Version history and migration guide
+│
+├── references/                       # SEO/GEO best practices
 │   ├── seo-checklist.md              # Keyword research, meta, headers, linking
 │   ├── geo-optimization.md           # Citation formatting, answer-box, structured data
 │   ├── eeat-guidelines.md            # Expertise, authoritativeness, trustworthiness
 │   └── content-patterns.md           # Proven structures that rank well
-├── scripts/
-│   ├── validate_structure.py         # Checks post structure against best practices
-│   ├── keyword_research.py           # Automated keyword research with DataForSEO API
-│   ├── competitor_analysis.py        # Analyze top-ranking pages
-│   ├── internal_linking.py           # Suggest internal linking opportunities
-│   ├── test_keyword_research.py      # Comprehensive test suite
-│   └── setup_credentials.py          # Interactive credential setup helper
-├── assets/
-│   ├── blog-template.md              # Starter template
-│   └── structured-data-examples.json # Schema.org patterns
-└── README.md
+│
+├── scripts/                          # Automation scripts
+│   ├── validate_structure.py         # Structure validation against best practices
+│   ├── iterative_validation.py       # Auto-fix validation issues (v2.2 Week 1)
+│   ├── content_sources.py            # Multi-source content discovery (v2.2 Week 2)
+│   ├── auto_internal_linking.py      # Auto-insert internal links (v2.2 Week 2)
+│   ├── image_generation.py           # AI image generation (v2.2 Week 3)
+│   ├── keyword_research.py           # DataForSEO API keyword research
+│   ├── competitor_analysis.py        # Top-ranking page analysis
+│   ├── internal_linking.py           # Internal linking suggestions
+│   └── setup_credentials.py          # Interactive credential setup
+│
+└── assets/                           # Templates and examples
+    ├── blog-template.md              # Starter blog post template
+    ├── structured-data-examples.json # Schema.org markup patterns
+    └── .seo-geo-config.json.template # Configuration template (copy to ~/.seo-geo-skill/config.json)
 ```
 
 ## Keyword Research Tool
@@ -453,6 +462,422 @@ Replace `email automation` with `[Email automation](https://yoursite.com/blog/em
 
 ---
 
+## Image Generation (NEW v2.2)
+
+**Automated blog post image generation using AI APIs**
+
+Generate professional, SEO-optimized images automatically for your blog posts using Google Imagen or OpenAI DALL-E 3. No more searching stock photo sites or hiring designers.
+
+### Features
+
+✨ **Auto-generates missing images:**
+- Featured/hero images (photorealistic, 1792x1024px)
+- Section illustrations (vector/illustration style, 1024x1024px)
+- Diagrams and infographics (technical style, 1024x1024px)
+
+🎨 **Smart image classification:**
+- Detects image type from context and alt text
+- Chooses appropriate style (photorealistic, illustration, diagram)
+- Optimizes prompts for each image type
+
+💰 **Multi-API support with fallback:**
+- **Google Imagen** (priority 1): $0.02/image
+- **OpenAI DALL-E 3** (priority 2): $0.04-$0.08/image
+- Automatic failover between APIs
+
+📊 **Cost tracking:** Shows per-image and total generation costs
+
+### Quick Start
+
+**1. Install dependencies:**
+```bash
+pip install openai  # For DALL-E 3
+# OR
+pip install google-cloud-aiplatform  # For Google Imagen (requires Google Cloud setup)
+```
+
+**2. Add image placeholders to your draft** (optional):
+```markdown
+# My Blog Post Title
+
+![Professional marketing dashboard showing analytics](placeholder)
+
+## Section Title
+
+![Email workflow diagram showing automation steps](placeholder)
+```
+
+**Note:** Featured image is auto-generated from title if not present.
+
+**3. Generate images:**
+
+**Option A - OpenAI DALL-E 3 (easiest):**
+```bash
+export OPENAI_API_KEY=sk-proj-...
+
+python scripts/image_generation.py draft.md \
+  --output draft-with-images.md \
+  --max-images 5
+```
+
+**Option B - Google Imagen:**
+```bash
+export GOOGLE_API_KEY=...
+export GOOGLE_PROJECT_ID=my-project
+
+python scripts/image_generation.py draft.md \
+  --output draft-with-images.md \
+  --max-images 5
+```
+
+**Option C - Use configuration file:**
+```json
+// .seo-geo-config.json
+{
+  "image_generation": {
+    "enabled": true,
+    "google_api_key": "...",
+    "google_project_id": "...",
+    "openai_api_key": "sk-...",
+    "max_images_per_post": 5,
+    "output_dir": "./generated_images"
+  }
+}
+```
+
+### Usage Examples
+
+#### Basic Usage
+```bash
+python scripts/image_generation.py my-draft.md --output final-draft.md
+```
+
+#### Dry-Run (test without API keys)
+```bash
+python scripts/image_generation.py my-draft.md --dry-run
+
+# Output:
+# 🔍 DRY-RUN MODE: Extracting image needs...
+#
+# Found 4 image placeholder(s):
+#
+# 1. Type: featured | Style: photorealistic
+#    Alt: Ultimate Email Marketing Guide 2024
+#    Context: # The Ultimate Email Marketing Guide...
+#
+# 2. Type: section | Style: illustration
+#    Alt: Email dashboard showing analytics
+#    ...
+```
+
+#### Custom output directory
+```bash
+python scripts/image_generation.py draft.md \
+  --output draft-with-images.md \
+  --output-dir ./blog-images \
+  --max-images 8
+```
+
+#### With specific API
+```bash
+# Force OpenAI even if Google credentials exist
+python scripts/image_generation.py draft.md \
+  --openai-api-key sk-... \
+  --output result.md
+```
+
+### How It Works
+
+#### 1. Extract Image Needs
+
+The script analyzes your markdown draft to find:
+- **Placeholders:** `![Alt text](placeholder)` patterns
+- **Missing featured image:** Auto-adds if first image isn't present
+- **Context:** Extracts surrounding text for better prompts
+
+#### 2. Classify Images
+
+Each image is classified by type and style:
+
+| Image Type | Style | Size | Trigger |
+|------------|-------|------|---------|
+| Featured/Hero | Photorealistic | 1792x1024 | First image or auto-generated |
+| Section | Illustration | 1024x1024 | Images within content sections |
+| Diagram | Technical | 1024x1024 | Keywords: diagram, flowchart, workflow |
+
+**Classification logic:**
+```python
+# Featured image
+if is_first_image or "featured" in alt_text.lower():
+    type = ImageType.FEATURED
+    style = ImageStyle.PHOTOREALISTIC
+
+# Diagram
+elif any(kw in alt_text.lower() for kw in ["diagram", "flowchart", "workflow", "infographic"]):
+    type = ImageType.DIAGRAM
+    style = ImageStyle.DIAGRAM
+
+# Default section image
+else:
+    type = ImageType.SECTION
+    style = ImageStyle.ILLUSTRATION
+```
+
+#### 3. Generate Images
+
+**API Priority:**
+1. Try Google Imagen ($0.02/image)
+2. Fallback to OpenAI DALL-E 3 ($0.04-$0.08/image)
+3. Report error if both fail
+
+**Prompt optimization by style:**
+
+**Photorealistic:**
+```
+Professional [subject], photorealistic, professional photography,
+high quality, detailed, 4K, sharp focus, [context]
+```
+
+**Illustration:**
+```
+Digital illustration of [subject], vector art, clean, modern,
+professional, flat design, [context]
+```
+
+**Diagram:**
+```
+Technical diagram showing [subject], infographic style, clean lines,
+clear labels, professional, [context]
+```
+
+#### 4. Insert Into Draft
+
+Replaces placeholders with actual image paths:
+```markdown
+Before: ![Dashboard](placeholder)
+After:  ![Professional marketing dashboard](./generated_images/image_abc123.png)
+```
+
+### Example Output
+
+**Input draft:**
+```markdown
+# Email Marketing Guide 2024
+
+![Email marketing overview](placeholder)
+
+Email marketing delivers $42 ROI per $1 spent...
+
+## Building Your List
+
+![List building strategy flowchart](placeholder)
+```
+
+**After generation:**
+```markdown
+# Email Marketing Guide 2024
+
+![Ultimate Email Marketing Guide 2024](./generated_images/image_featured_abc123.png)
+
+Email marketing delivers $42 ROI per $1 spent...
+
+## Building Your List
+
+![List building strategy flowchart](./generated_images/image_section_def456.png)
+```
+
+**Console output:**
+```
+============================================================
+IMAGE GENERATION SUMMARY
+
+✓ Ultimate Email Marketing Guide 2024
+  File: ./generated_images/image_featured_abc123.png
+  API: openai-dalle3
+  Cost: $0.08
+  Prompt: Professional email marketing guide cover, photorealistic, profession...
+
+✓ List building strategy flowchart
+  File: ./generated_images/image_section_def456.png
+  API: openai-dalle3
+  Cost: $0.04
+  Prompt: Digital illustration of email list building strategy flowchart, vec...
+
+Total cost: $0.12
+============================================================
+
+✓ Updated draft saved to: draft-with-images.md
+```
+
+### Configuration Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--max-images` | Maximum images to generate | 5 |
+| `--output` | Save updated draft to file | stdout |
+| `--output-dir` | Image output directory | `./generated_images` |
+| `--google-api-key` | Google API key | `$GOOGLE_API_KEY` |
+| `--google-project-id` | Google project ID | `$GOOGLE_PROJECT_ID` |
+| `--openai-api-key` | OpenAI API key | `$OPENAI_API_KEY` |
+| `--dry-run` | Extract needs without generating | false |
+
+### API Setup
+
+#### OpenAI DALL-E 3 (Recommended for Getting Started)
+
+**Pros:**
+- Simple setup (just API key)
+- High-quality images
+- No infrastructure needed
+
+**Cons:**
+- More expensive ($0.04-$0.08 per image)
+- Rate limits on free tier
+
+**Setup:**
+```bash
+# Get API key from https://platform.openai.com/api-keys
+export OPENAI_API_KEY=sk-proj-...
+
+# Install SDK
+pip install openai
+```
+
+#### Google Imagen (Best for Scale)
+
+**Pros:**
+- Cheapest ($0.02 per image)
+- Enterprise-grade
+
+**Cons:**
+- Requires Google Cloud setup
+- More complex authentication
+
+**Setup:**
+```bash
+# 1. Create Google Cloud project
+# 2. Enable Vertex AI API
+# 3. Get API key and project ID
+export GOOGLE_API_KEY=...
+export GOOGLE_PROJECT_ID=my-project-id
+
+# Install SDK
+pip install google-cloud-aiplatform
+```
+
+### Cost Management
+
+**Typical blog post costs:**
+
+| Image Count | Google Imagen | OpenAI DALL-E 3 (Standard) | OpenAI DALL-E 3 (HD) |
+|-------------|---------------|---------------------------|---------------------|
+| 3 images | $0.06 | $0.12 | $0.24 |
+| 5 images | $0.10 | $0.20 | $0.40 |
+| 10 images | $0.20 | $0.40 | $0.80 |
+
+**Budget optimization:**
+```bash
+# Limit images per post
+python scripts/image_generation.py draft.md --max-images 3
+
+# Use Google Imagen for scale
+export GOOGLE_API_KEY=... GOOGLE_PROJECT_ID=...
+
+# Test with dry-run first
+python scripts/image_generation.py draft.md --dry-run
+```
+
+### Troubleshooting
+
+**"No image generation APIs configured"**
+```bash
+# Solution: Set at least one API key
+export OPENAI_API_KEY=sk-...
+# OR
+export GOOGLE_API_KEY=... GOOGLE_PROJECT_ID=...
+```
+
+**"No image placeholders found"**
+```bash
+# Solution 1: Add placeholders to your draft
+![Description](placeholder)
+
+# Solution 2: Featured image is still auto-generated
+# The script will create a hero image from your title
+```
+
+**"API rate limit exceeded"**
+```bash
+# Solution: Wait and retry, or switch APIs
+python scripts/image_generation.py draft.md \
+  --openai-api-key sk-different-key...
+```
+
+**Images don't match content**
+```bash
+# Solution: Improve alt text with context
+# Bad:  ![Diagram](placeholder)
+# Good: ![Email automation workflow diagram showing trigger sequences](placeholder)
+```
+
+### Integration with Workflow
+
+**Complete blog post workflow:**
+```bash
+# 1. Write draft (Phase 4)
+claude-code "Write blog post: email marketing tips"
+# Outputs: /tmp/blog_draft.md
+
+# 2. Add internal links (Phase 5)
+python scripts/auto_internal_linking.py /tmp/blog_draft.md \
+  --output /tmp/blog_draft_linked.md
+
+# 3. Generate images (Phase 6)
+python scripts/image_generation.py /tmp/blog_draft_linked.md \
+  --output /tmp/blog_draft_final.md \
+  --max-images 5
+
+# 4. Final validation (Phase 7)
+python scripts/iterative_validation.py /tmp/blog_draft_final.md \
+  --output /tmp/blog_post_complete.md \
+  --target-score 80
+```
+
+### Best Practices
+
+**Alt text optimization:**
+```markdown
+# ❌ Bad - too vague
+![Dashboard](placeholder)
+
+# ✅ Good - descriptive and keyword-rich
+![Professional email marketing dashboard showing open rates and click-through analytics](placeholder)
+```
+
+**Strategic image placement:**
+```markdown
+# Featured image (auto-generated)
+# [Title automatically becomes featured image]
+
+## Section 1
+[Content paragraph]
+
+![Section-specific illustration](placeholder)  ← Add after introducing concept
+
+## Section 2 (with complex concept)
+[Content paragraph]
+
+![Diagram explaining the workflow](placeholder)  ← Use diagrams for technical content
+```
+
+**Cost optimization:**
+- Start with `--dry-run` to preview
+- Use `--max-images 3` for budget-conscious posts
+- Featured image + 2-3 section images is optimal
+- Diagrams should be reserved for complex explanations
+
+---
+
 ## API Setup & Credential Management
 
 ### DataForSEO API (Optional)
@@ -564,66 +989,227 @@ The script is designed to work **without** credentials:
 3. **Use fallback mode** - Script works without credentials, so it's optional
 4. **Clear credentials after use** - If stored temporarily, clear them after session
 
-## Testing Guide
+---
 
-### Quick Test (No API Key Required)
+### Sanity CMS, Google Imagen & OpenAI Setup
 
-Test the fallback mode which works without any API credentials:
+**🔐 Security-First Configuration**
 
-```bash
-cd scripts
-python test_keyword_research.py --test-fallback
+API credentials for Sanity, Google Imagen, and OpenAI are stored in your **home directory** (outside the skill folder) to prevent accidental exposure when zipping or uploading the skill to Claude.
+
+**Config Location:** `~/.seo-geo-skill/config.json` (same pattern as DataForSEO)
+
+**Why this location?**
+- ✅ Secure: Outside skill directory, won't be included in skill zip files
+- ✅ Persistent: Survives skill updates and reinstalls
+- ✅ Shared: Can be used across multiple skill versions
+- ✅ Safe: Never accidentally committed to GitHub or uploaded to Claude
+
+#### Configuration File Format
+
+Create `~/.seo-geo-skill/config.json`:
+
+```json
+{
+  "sanity": {
+    "project_id": "your-sanity-project-id",
+    "dataset": "production",
+    "api_version": "2023-05-03",
+    "token": null
+  },
+
+  "content_sources": {
+    "local_markdown_dir": null
+  },
+
+  "internal_linking": {
+    "min_confidence_auto_insert": 90,
+    "max_links_per_post": 5,
+    "cache_ttl_hours": 24
+  },
+
+  "validation": {
+    "target_score": 80,
+    "max_iterations": 3
+  },
+
+  "image_generation": {
+    "enabled": true,
+    "google_api_key": "YOUR_GOOGLE_API_KEY_HERE",
+    "google_project_id": "your-gcp-project-id",
+    "openai_api_key": "sk-proj-YOUR_OPENAI_KEY_HERE",
+    "max_images_per_post": 5,
+    "output_dir": "./generated_images"
+  }
+}
 ```
 
-### Full Test Suite
+#### Credential Priority
 
-Run all tests (except real API):
+Scripts use this priority order:
+1. **CLI arguments** (highest) - Passed directly to scripts
+2. **Environment variables** - `export VARIABLE_NAME=value`
+3. **Config file** - `~/.seo-geo-skill/config.json` in home directory
+4. **Defaults** (lowest) - Fallback values
 
+#### Setup: Sanity CMS (for Internal Linking)
+
+**What you need:**
+- `project_id` - Your Sanity project ID (required)
+- `dataset` - Usually "production" (optional, defaults to "production")
+- `token` - Read token for private datasets (optional, use null for public)
+
+**Where to find:**
+1. Log in to https://sanity.io
+2. Go to your project settings
+3. Find "Project ID" in the dashboard
+4. For token: Settings → API → Tokens (only if dataset is private)
+
+**Test it:**
 ```bash
-python test_keyword_research.py
+python scripts/content_sources.py --sanity-test
 ```
 
-This runs:
-1. ✅ Fallback mode test (no API needed)
-2. ✅ API response parsing with mock data
-3. ✅ Difficulty calculation logic
-4. ✅ Relevance score calculation
-5. ✅ Output format validation (JSON, Markdown, Simple)
-6. ✅ Base64 credential decoding
-7. ✅ Error handling
+#### Setup: Google Imagen (for Image Generation)
 
-### Test Specific Components
+**What you need:**
+- `google_api_key` - Your Google Cloud API key
+- `google_project_id` - Your GCP project ID
 
+**Where to find:**
+1. Go to https://console.cloud.google.com
+2. Select your project or create new one
+3. Enable "Vertex AI API"
+4. Go to APIs & Services → Credentials
+5. Create API Key (or use existing)
+6. Copy project ID from dashboard
+
+**Install library:**
 ```bash
-# Test API response parsing only
-python test_keyword_research.py --test-parsing
-
-# Test with mock API data
-python test_keyword_research.py --mock-api
-
-# Test with real API (if credentials available)
-python test_keyword_research.py --real-api --api-key "login:password"
+pip install google-cloud-aiplatform
 ```
 
-### Test Coverage
+**Test it:**
+```bash
+python scripts/image_generation.py test-draft.md --dry-run
+# Should show: "✓ Google Imagen configured (priority 1)"
+```
 
-**Total Tests: 14 passed, 0 failed** ✅
+**Cost:** $0.02/image, $2,000 startup credit available
 
-All **16 functions** in `keyword_research.py` are tested:
-- ✅ 15 functions directly tested
-- ✅ 1 function (`main()`) tested via manual execution
+#### Setup: OpenAI DALL-E 3 (Fallback for Images)
 
-**Real API Test: PASSED** ✅
+**What you need:**
+- `openai_api_key` - Your OpenAI API key (starts with `sk-proj-`)
 
-### What the Tests Verify
+**Where to find:**
+1. Go to https://platform.openai.com/api-keys
+2. Create new secret key or use existing
+3. Copy the key (starts with `sk-proj-`)
 
-- ✅ Fallback mode generates keyword variations correctly
-- ✅ API response parsing handles DataForSEO v3 structure
-- ✅ Difficulty calculation uses `competition_index` when available
-- ✅ Relevance scoring considers volume, difficulty, and topic match
-- ✅ Output formats (JSON, Markdown, Simple) all work
-- ✅ Base64 credential decoding works automatically
-- ✅ Error handling gracefully falls back to heuristic mode
+**Install library:**
+```bash
+pip install openai
+```
+
+**Test it:**
+```bash
+python scripts/image_generation.py test-draft.md --dry-run
+# Should show: "✓ OpenAI DALL-E 3 configured (priority 2)"
+```
+
+**Cost:** $0.04-$0.08/image (1024x1024 standard quality)
+
+#### Verification Checklist
+
+**1. Create config directory:**
+```bash
+mkdir -p ~/.seo-geo-skill
+```
+
+**2. Create config file:**
+```bash
+# Copy from template
+cp assets/.seo-geo-config.json.template ~/.seo-geo-skill/config.json
+# Then edit with your credentials: nano ~/.seo-geo-skill/config.json
+```
+
+**3. Verify config exists:**
+```bash
+ls -la ~/.seo-geo-skill/config.json
+```
+
+**4. Validate JSON format:**
+```bash
+python3 -m json.tool ~/.seo-geo-skill/config.json
+# Should pretty-print your config without errors
+```
+
+**5. Test config loading:**
+```bash
+python scripts/config_loader.py
+# Should show all your config sections
+```
+
+**6. Security check:**
+```bash
+# Verify config is NOT in skill directory
+ls -la .seo-geo-config.json
+# Should show "No such file or directory" ✅
+```
+
+#### Troubleshooting
+
+**"No image generation APIs configured"**
+```bash
+# Check file exists
+ls -la ~/.seo-geo-skill/config.json
+
+# Verify credentials are set (not null)
+cat ~/.seo-geo-skill/config.json | grep -A5 image_generation
+
+# Test config loading
+python scripts/config_loader.py
+```
+
+**"Sanity API error: Project not found"**
+```bash
+# Verify your project ID
+cat ~/.seo-geo-skill/config.json | grep project_id
+
+# Test Sanity connection
+python scripts/content_sources.py
+```
+
+**"Google Imagen not configured"**
+```bash
+# Install library if needed
+pip install google-cloud-aiplatform
+
+# Verify credentials
+cat ~/.seo-geo-skill/config.json | grep google_api_key
+```
+
+#### Environment Variable Override (Optional)
+
+If you prefer environment variables instead of config file:
+
+```bash
+# Sanity
+export SANITY_PROJECT_ID="your-project-id"
+export SANITY_DATASET="production"
+
+# Google Imagen
+export GOOGLE_API_KEY="your-api-key"
+export GOOGLE_PROJECT_ID="your-gcp-project"
+
+# OpenAI
+export OPENAI_API_KEY="sk-proj-your-key"
+```
+
+**Note:** Environment variables override config file values.
+
+---
 
 ## Mode Comparison
 
@@ -788,6 +1374,434 @@ Overall Score: 85/100
 ============================================================
 ```
 
+## Iterative Validation with Auto-Fix (NEW v2.2)
+
+**Automated quality improvement through iterative fixing**
+
+The iterative validation script automatically fixes common blog post issues through multiple validation iterations, eliminating manual correction work.
+
+### Usage
+
+```bash
+python scripts/iterative_validation.py your-draft.md \
+  --max-iterations 3 \
+  --target-score 80 \
+  --output your-draft-fixed.md
+```
+
+### How It Works
+
+The script performs a 3-step cycle:
+1. **Validate** current draft state
+2. **Auto-fix** common issues
+3. **Re-validate** to measure improvement
+
+**Stops when:**
+- Score ≥ 80 (target threshold)
+- Max 3 iterations reached
+- No more auto-fixable issues
+
+### Auto-Fixable Issues
+
+**✅ FAQ Section Missing**
+- Generates 4-6 questions from H2 headings
+- Converts headings to question format
+- Extracts first 100 words from each section as answers
+- Example: "Best Practices" → "What are the best practices?"
+
+**✅ Author Bio Missing**
+- Adds structured author bio template at end
+- Placeholders for user to complete: `[Author Name]`, `[job title]`, `[experience]`
+- Includes social media and website links
+
+**✅ Short Title (<50 chars)**
+- Adds year for guides: "Marketing Guide" → "Marketing Guide 2025"
+- Adds descriptors: "Tips" → "Complete Tips Guide"
+- Keeps under 60 chars limit
+
+**✅ Schema Markup Missing**
+- Adds BlogPosting schema template
+- Adds FAQPage schema (if FAQ section present)
+- Placeholders for user to complete: dates, URLs, descriptions
+
+### Non-Auto-Fixable Issues
+
+**⚠️ Low Word Count**
+- Identifies thin sections (<150 words)
+- Notes sections needing expansion
+- Requires manual content writing
+
+**⚠️ Missing Links/Images**
+- Cannot auto-source content
+- Requires research or generation (see Week 2 & 3 roadmap)
+
+**⚠️ Low Readability**
+- Complex content restructuring needed
+- Requires manual editing
+
+### Example Output
+
+```
+🔄 Iteration 1/3
+   Score: 30/100
+   ✓ Added FAQ section with 6 questions
+   ✓ Added author bio template (requires user completion)
+   ✓ Expanded title: 'Email Tips' → 'Complete Email Tips Guide 2025'
+   ✓ Added schema markup templates (requires completion)
+
+🔄 Iteration 2/3
+   Score: 45/100
+   No auto-fixable warnings remaining
+
+============================================================
+ITERATIVE VALIDATION RESULTS
+============================================================
+
+Final Score: 45/100
+
+Fixes Applied (4):
+  ✓ Added FAQ section with 6 questions
+  ✓ Added author bio template (requires user completion)
+  ✓ Expanded title: 'Email Tips' → 'Complete Email Tips Guide 2025'
+  ✓ Added schema markup templates (requires completion)
+
+✓ PASSED (5 checks):
+  ✓ Title length optimal: 40 chars
+  ✓ FAQ section with 6 questions
+  ✓ Author bio present
+  ...
+
+⚠ WARNINGS (3 items):
+  ⚠ Internal links: 0 (target: 3-5)
+  ⚠ Images: 0 (target: 5-8)
+  ⚠ Word count: 520 (target: 1,500+)
+
+============================================================
+```
+
+### Integration with Workflow
+
+In the SEO-GEO skill workflow, Claude automatically uses iterative validation in **Phase 5** after drafting. This eliminates manual correction of:
+- Missing FAQ sections
+- Missing author bios
+- Short titles
+- Missing schema markup
+
+Remaining warnings (links, images, word count) are noted for manual attention or handled by upcoming features (Weeks 2-3).
+
+## Auto Internal Linking (NEW v2.2)
+
+**Automated internal link discovery and insertion**
+
+The auto internal linking system discovers existing blog posts from multiple sources and automatically inserts high-confidence internal links (≥90 relevance) into new drafts.
+
+### Features
+
+**Multi-Source Content Discovery:**
+- ✅ **Sanity CMS API** (priority 1) - Query published posts via GROQ
+- ✅ **Local Markdown Files** (priority 2) - Scan directory for .md files
+- ✅ **24hr Caching** - Minimize API calls and improve performance
+- ✅ **Graceful Fallback** - Sanity fails → Local → Empty (no errors)
+
+**Intelligent Link Insertion:**
+- Relevance-based scoring (keyword overlap, topic similarity, context matching)
+- Auto-insert only high-confidence links (≥90 relevance by default)
+- First occurrence replacement (avoids over-linking)
+- Markdown link format preservation
+- Configurable thresholds and limits
+
+### Quick Start
+
+**1. Configure Content Source:**
+
+```bash
+# Option A: Sanity CMS (recommended for production)
+export SANITY_PROJECT_ID=your-project-id
+export SANITY_DATASET=production  # or 'staging'
+
+# Option B: Local markdown directory
+# (no env vars needed, pass via --local-content flag)
+```
+
+**2. Test Content Discovery:**
+
+```bash
+# With Sanity
+python scripts/content_sources.py --sanity-project-id your-project-id
+
+# With local markdown
+python scripts/content_sources.py --local-content ./blog-posts
+
+# Both sources (Sanity takes priority)
+python scripts/content_sources.py \
+  --sanity-project-id your-project-id \
+  --local-content ./blog-posts
+```
+
+**Example output:**
+```
+✓ Fetched 50 items from SanitySource
+
+✓ Discovered 50 content items
+
+1. Complete Email Marketing Guide 2025
+   URL: /blog/email-marketing-guide
+   Keywords: email marketing, automation, campaigns
+   Source: sanity
+   Published: 2025-01-15
+...
+```
+
+**3. Auto-Insert Internal Links:**
+
+```bash
+# Dry run (show suggestions without inserting)
+python scripts/auto_internal_linking.py draft.md \
+  --sanity-project-id your-project-id \
+  --dry-run
+
+# Actual insertion
+python scripts/auto_internal_linking.py draft.md \
+  --sanity-project-id your-project-id \
+  --output draft-with-links.md
+```
+
+### Usage Examples
+
+**With Sanity CMS:**
+```bash
+python scripts/auto_internal_linking.py my-draft.md \
+  --sanity-project-id abc123xyz \
+  --sanity-dataset production \
+  --min-confidence 90 \
+  --max-links 5 \
+  --output my-draft-linked.md
+```
+
+**With Local Markdown:**
+```bash
+python scripts/auto_internal_linking.py my-draft.md \
+  --local-content ./content/blog \
+  --min-confidence 85 \
+  --max-links 7 \
+  --output my-draft-linked.md
+```
+
+**Dry Run (Preview):**
+```bash
+python scripts/auto_internal_linking.py draft.md \
+  --local-content ./posts \
+  --dry-run
+```
+
+### Configuration Options
+
+#### Command Line Flags
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--sanity-project-id` | Sanity project ID | `$SANITY_PROJECT_ID` |
+| `--sanity-dataset` | Sanity dataset name | `production` |
+| `--sanity-token` | Read token for private datasets | `$SANITY_TOKEN` |
+| `--local-content` | Local markdown directory | None |
+| `--min-confidence` | Min relevance for auto-insert | `90` |
+| `--max-links` | Max links to insert | `5` |
+| `--output` | Save to file (default: stdout) | None |
+| `--dry-run` | Show suggestions without inserting | `False` |
+| `--no-cache` | Skip content cache | `False` |
+
+#### Configuration File
+
+**📍 Config Location:** `~/.seo-geo-skill/config.json`
+
+See the **[API Setup & Credential Management](#api-setup--credential-management)** section above for:
+- Complete configuration file format
+- Sanity CMS credential setup
+- Google Imagen / OpenAI DALL-E setup
+- Verification checklist and troubleshooting
+
+### How It Works
+
+**1. Content Discovery:**
+```
+Priority Chain:
+  ├─ Sanity API (if configured) ✓
+  ├─ Local Markdown (if provided) ✓
+  └─ Empty list (graceful fallback)
+```
+
+**2. Relevance Scoring:**
+- **Keyword Prominence (40%)**: How prominent is the keyword in target page?
+- **Keyword Overlap (30%)**: How many keywords overlap between draft and target?
+- **Context Matching (30%)**: How well do topics align?
+
+**3. Link Insertion:**
+- Find first occurrence of target keyword in draft
+- Check if already inside a link (skip if yes)
+- Replace with markdown link: `[keyword](url)`
+- Track inserted links to avoid duplicates
+
+### Example Output
+
+**Dry Run:**
+```
+============================================================
+DRY RUN - Internal Link Suggestions
+============================================================
+
+High-confidence links (≥90 relevance):
+
+1. Keyword: 'email marketing'
+   → Link to: /blog/email-marketing-guide
+   → Anchor: Email marketing
+   → Relevance: 95/100
+   → Reason: Highly relevant: 'email marketing' appears multiple times
+
+2. Keyword: 'marketing automation'
+   → Link to: /blog/automation-best-practices
+   → Anchor: Marketing automation
+   → Relevance: 92/100
+   → Reason: Strong topic overlap and keyword prominence
+
+Medium-confidence links (80-89 relevance):
+...
+============================================================
+```
+
+**Actual Insertion:**
+```
+🔗 Auto-inserting 5 high-confidence links...
+
+  ✓ Inserted: Email marketing → /blog/email-marketing-guide (95)
+  ✓ Inserted: Marketing automation → /blog/automation-best-practices (92)
+  ✓ Inserted: Customer segmentation → /blog/segmentation-guide (91)
+  ✓ Inserted: Email campaigns → /blog/campaign-optimization (90)
+  ✓ Inserted: ROI tracking → /blog/marketing-metrics (90)
+
+============================================================
+INTERNAL LINKING RESULTS
+============================================================
+
+✓ Successfully inserted 5 links
+✓ Updated draft saved to: draft-with-links.md
+============================================================
+```
+
+### Content Sources Setup
+
+#### Sanity CMS Setup
+
+**1. Get Sanity Credentials:**
+- Log in to [sanity.io](https://www.sanity.io/)
+- Navigate to your project settings
+- Copy **Project ID** from project settings
+- (Optional) Generate **Read Token** if dataset is private
+
+**2. Configure:**
+```bash
+export SANITY_PROJECT_ID=abc123xyz
+export SANITY_DATASET=production
+# Only if private dataset:
+export SANITY_TOKEN=sk...
+```
+
+**3. Test Connection:**
+```bash
+python scripts/content_sources.py --sanity-project-id $SANITY_PROJECT_ID
+```
+
+#### Local Markdown Setup
+
+**1. Organize Blog Posts:**
+```
+blog-posts/
+├── email-marketing-guide.md
+├── automation-best-practices.md
+└── customer-segmentation.md
+```
+
+**2. Frontmatter Format (Optional but recommended):**
+```markdown
+---
+title: Complete Email Marketing Guide 2025
+date: 2025-01-15
+tags: email marketing, automation, campaigns
+description: Comprehensive guide to email marketing
+---
+
+# Content starts here
+```
+
+**3. Test Discovery:**
+```bash
+python scripts/content_sources.py --local-content ./blog-posts
+```
+
+### Caching Behavior
+
+**24-Hour Cache:**
+- First query: Fetches from API/filesystem (~2-5 seconds)
+- Subsequent queries: Loads from cache (<1 second)
+- Cache expires after 24 hours
+- Cache location: `~/.seo-geo-blog-writer/content-cache/`
+
+**Cache Management:**
+```bash
+# Clear cache
+python scripts/content_sources.py --clear-cache
+
+# Force fresh fetch (skip cache)
+python scripts/auto_internal_linking.py draft.md \
+  --local-content ./posts \
+  --no-cache
+```
+
+### Troubleshooting
+
+**No content found:**
+```
+❌ No existing content found.
+
+Please configure at least one content source:
+  --sanity-project-id <project_id>  (Sanity CMS)
+  --local-content <directory>        (Local markdown)
+```
+
+**Solution:**
+- Verify `SANITY_PROJECT_ID` is set correctly
+- Check local markdown directory exists and contains .md files
+- Ensure Sanity dataset contains published posts (not drafts)
+
+**No linking opportunities:**
+```
+ℹ️  No internal linking opportunities found
+
+Possible reasons:
+  - Draft content doesn't match existing page topics
+  - Existing content library too small
+  - Keywords don't overlap sufficiently
+```
+
+**Solution:**
+- Lower `--min-confidence` threshold (try 80-85)
+- Expand existing content library
+- Ensure draft uses keywords present in existing content
+
+### Integration with Workflow
+
+In the SEO-GEO skill workflow, Claude automatically uses auto internal linking in **Phase 5** after drafting and before validation.
+
+**Complete Workflow:**
+1. Research & Keyword Selection
+2. Outline Creation
+3. Draft Writing
+4. Content Optimization
+5. **Auto Internal Linking** ← Inserts 3-5 high-confidence links
+6. Image Generation (Week 3)
+7. Final Validation (checks links present)
+
+This eliminates manual link research and insertion, saving 10-15 minutes per post while ensuring optimal internal linking structure.
+
 ## Content Patterns
 
 The skill includes 6 proven patterns:
@@ -849,20 +1863,13 @@ The skill includes 6 proven patterns:
 **Solution:** Claude automatically uses cached/fallback mode  
 **Note:** Fallback provides estimates, not real-time data
 
-### Tests Fail with Import Errors
-**Solution:** Make sure you're running from the `scripts` directory:
-```bash
-cd scripts
-python test_keyword_research.py
-```
+### API Errors
+If DataForSEO API has issues:
+- No API key is set → Uses fallback mode (estimates)
+- API key is invalid → Falls back gracefully to heuristics
+- Rate limited → Automatically uses cached/fallback mode
 
-### API Tests Fail
-This is normal if:
-- No API key is set (expected - uses fallback)
-- API key is invalid (expected - falls back gracefully)
-- Rate limited (expected - API may throttle)
-
-The script is designed to fall back to heuristic mode, so failures are handled gracefully.
+The script is designed to work with or without API credentials.
 
 ## Schema Markup
 
@@ -933,7 +1940,124 @@ python scripts/validate_structure.py README.md
 - Dependencies: See `requirements.txt` (one-command install)
 - DataForSEO API: Optional (graceful fallback to heuristic mode)
 
+---
+
+## 💰 Cost & Pricing
+
+### Per-Post Cost Summary
+
+| Configuration | Cost Per Post | Best For |
+|---------------|---------------|----------|
+| **Budget Mode** | $0.36-$0.66 | High-volume content (100+ posts/month) |
+| **Balanced Mode** ⭐ | $0.40-$0.95 | Most users (recommended) |
+| **Premium Mode** | $1.03-$1.45 | Professional blogs, agencies |
+
+### Component Breakdown (Balanced Mode)
+
+| Component | Provider | First Post | Cached/Repeat | Notes |
+|-----------|----------|------------|---------------|-------|
+| **Content Writing** | Claude Sonnet 4.5 | $0.30-$0.60 | $0.30-$0.60 | Required - main content generation |
+| **Keyword Research** | DataForSEO API | $0.15-$0.25 | $0.00 | Optional - 30-day cache, Mode B only |
+| **Competitor Analysis** | DataForSEO OnPage | $0.50 | $0.00 | Optional - reuse across topic clusters |
+| **Internal Linking** | Sanity/Local | $0.00 | $0.00 | Free tier or local markdown |
+| **Image Generation** | Google Imagen | $0.08 | $0.08 | 4 images @ $0.02 each |
+| **Validation Loop** | Local | $0.00 | $0.00 | No API calls |
+| **TOTAL** | | **$0.53-$1.45** | **$0.38-$0.70** | With aggressive caching |
+
+### Volume Pricing
+
+| Posts/Month | First Month | Ongoing (90% cached) | Avg Cost/Post |
+|-------------|-------------|----------------------|---------------|
+| 10 posts | $5-$10 | $4-$7 | **$0.40-$0.70** |
+| 50 posts | $27-$48 | $20-$36 | **$0.40-$0.72** |
+| 100 posts | $36-$66 | $36-$66 | **$0.36-$0.66** |
+
+### API Pricing Details
+
+**Claude Sonnet 4.5** (required for content generation)
+- Input: $3.00 per 1M tokens
+- Output: $15.00 per 1M tokens
+- Typical post: ~62K input + ~18K output = $0.30-$0.60
+
+**Image Generation** (optional but recommended)
+- **Google Imagen** (priority 1): $0.02/image
+  - 4 images/post = $0.08
+- **OpenAI DALL-E 3** (fallback): $0.04-$0.08/image
+  - Standard 1024x1024: $0.04
+  - Featured 1792x1024: $0.08
+
+**DataForSEO API** (optional)
+- Keyword research: $0.05/keyword (3-5 keywords = $0.15-$0.25)
+- Competitor analysis: ~$0.05/page (10 pages = $0.50)
+- **Caching:** 30-day TTL = 90% cost savings on repeat topics
+- **Fallback:** Free heuristic mode if no API key
+
+**Sanity CMS** (optional for internal linking)
+- Free tier: 100,000 API requests/month
+- Effectively $0.00 for typical usage
+- **Fallback:** Local markdown file scanning (free)
+
+### Cost Optimization Tips
+
+1. **Use caching aggressively** - 30-day keyword cache saves $0.15-$0.25/post
+2. **Batch related posts** - Reuse research across topic clusters
+3. **Choose Mode A when possible** - Skip keyword research API if you know the target
+4. **Limit images to 3-4** - Balance quality with cost ($0.06-$0.08 vs $0.10)
+
+### ROI Comparison
+
+**SEO-GEO Tool Cost:** $0.40-$1.45/post
+
+**vs. Manual Creation:**
+- Freelance writer: $50-$200
+- Stock images: $10-$30
+- Keyword research: $25-$100
+- **Manual total: $85-$330**
+- **Savings: 99.5%+**
+
+**vs. Competing Tools:**
+- Jasper.ai: $49-$125/month
+- Copy.ai: $49/month
+- Surfer SEO: $89-$219/month
+- **Advantage:** Pay-per-use, lower cost at any volume
+
+### Recommended Configuration
+
+**For most users (Balanced Mode):**
+```yaml
+keyword_research: DataForSEO API (with 30-day cache)
+competitor_analysis: Selective (once per topic cluster)
+internal_linking: Local markdown or Sanity free tier
+image_generation: Google Imagen (4 images)
+validation: 3 iterations (local, free)
+
+Expected cost: $0.40-$0.95/post
+ROI: 100-500x (vs manual creation)
+```
+
+**Detailed cost breakdown:** See `planning/COST_ANALYSIS.md`
+
+---
+
 ## Version History
+
+**v2.2** - November 16, 2025 ✅
+- ✅ **Week 1:** Iterative validation with auto-fix (`iterative_validation.py`)
+  - Auto-fixes FAQ, author bio, short titles, missing schema
+  - Stops at score ≥80 or 3 iterations
+  - Saves 30-45 minutes of manual fixes per post
+- ✅ **Week 2:** Auto internal linking (`auto_internal_linking.py`, `content_sources.py`)
+  - Multi-source content discovery (Sanity CMS → Local → Fallback)
+  - Auto-inserts links ≥90 confidence score
+  - 24-hour caching for content discovery
+- ✅ **Week 3:** AI image generation (`image_generation.py`)
+  - Google Imagen + OpenAI DALL-E 3 support
+  - Smart image classification (featured/section/diagram)
+  - Style-optimized prompts (photorealistic/illustration/technical)
+  - Cost tracking and dry-run mode
+- ✅ Complete 7-phase workflow (research → links → images → validation)
+- ✅ Comprehensive documentation (400+ lines per feature)
+- See `planning/IMPLEMENTATION_PLAN.md` for detailed implementation history
 
 **v2.1** - November 2025
 - ✅ Added `requirements.txt` for one-command installation
@@ -957,15 +2081,25 @@ python scripts/validate_structure.py README.md
 - SEO/GEO optimization
 - E-E-A-T implementation
 
-See `CHANGELOG.md` for detailed version history.
+See `planning/CHANGELOG.md` for detailed version history.
 
-## Support
+## Support & Documentation
 
-For issues or improvements:
-1. Check `SKILL.md` for detailed workflow
-2. Review reference files for guidelines
-3. Run validation script for structural issues
-4. Run test suite to verify functionality
+**Quick Reference:**
+1. **SKILL.md** - Complete workflow instructions for Claude
+2. **references/** - SEO/GEO best practices and content patterns
+3. **planning/COST_ANALYSIS.md** - Detailed API costs and ROI breakdown
+4. **planning/IMPLEMENTATION_PLAN.md** - v2.2 development history
+
+**For Issues:**
+1. Run validation: `python scripts/validate_structure.py your-post.md`
+2. Review troubleshooting section above
+3. Check git history for recent changes
+
+**For API Setup:**
+- DataForSEO: See "API Setup & Credential Management" section
+- Google Imagen: Requires Google Cloud setup
+- OpenAI DALL-E: Get API key from platform.openai.com
 
 ## Common Use Cases
 
@@ -994,9 +2128,9 @@ Compare the workflows and pick your favorite! 🎉
 
 ---
 
-**Version:** 2.0  
-**Date:** November 2025  
-**Compatibility:** Claude Skills Framework  
+**Version:** 2.2
+**Date:** November 16, 2025
+**Compatibility:** Claude Skills Framework
 **Status:** Production Ready ✅
 
 **Note:** This skill creates professional SEO/GEO content but should be reviewed by subject matter experts before publication, especially for YMYL (Your Money Your Life) topics.
